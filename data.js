@@ -26,6 +26,7 @@ window.ANIMEFLIX_DATA = window.ANIMEFLIX_DATA || {
           ]}
         ]
       }
+  
 "1535": {
         noteHu: "Videa jogtiszta forrás.",
         seasons: [
