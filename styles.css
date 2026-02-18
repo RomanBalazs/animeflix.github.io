@@ -28,7 +28,7 @@ a:hover{text-decoration:none}
   position:sticky;top:0;z-index:20;
   backdrop-filter:blur(10px);
   background:rgba(20,20,20,.82);
-  border-bottom:1px solid rgba(255,255,255,.08);
+
 }
 .navRow{display:flex;align-items:center;gap:14px;height:56px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:950;letter-spacing:.2px}
@@ -84,7 +84,7 @@ a:hover{text-decoration:none}
 @media(min-width:900px){.grid.cols5{grid-template-columns:repeat(5,minmax(0,1fr))}}
 
 .tile{
-  border-radius:18px;overflow:hidden;
+  border-radius:18px;overflow:visible;
   border:1px solid var(--border);
   background:var(--panel);
 }
@@ -113,11 +113,11 @@ a:hover{text-decoration:none}
 .heroBanner{
   position:relative;
   min-height:420px;
-  border-bottom:1px solid rgba(255,255,255,.08);
+
   background-size:cover;
   background-position:center;
   background-color:var(--bg);
-  overflow:hidden;
+  overflow:visible;
 }
 .heroBanner::before{
   content:"";
@@ -130,11 +130,13 @@ a:hover{text-decoration:none}
 }
 .heroBanner::after{
   content:"";
-  position:absolute;left:0;right:0;bottom:-1px;
-  height:140px;
+  position:absolute;
+  left:0; right:0;
+  bottom:-110px;
+  height:240px;
   z-index:1;
   pointer-events:none;
-  background:linear-gradient(180deg, rgba(20,20,20,0) 0%, rgba(20,20,20,1) 72%, rgba(20,20,20,1) 100%);
+  background:linear-gradient(180deg, rgba(20,20,20,0) 0%, rgba(20,20,20,1) 52%, rgba(20,20,20,1) 100%);
 }
 .heroInnerN{
   position:relative;
@@ -220,7 +222,7 @@ a:hover{text-decoration:none}
   font-weight:900;
   color:rgba(255,255,255,.86);
   white-space:nowrap;
-  overflow:hidden;
+  overflow:visible;
   text-overflow:ellipsis;
 }
 
@@ -233,7 +235,7 @@ a:hover{text-decoration:none}
 .modal{
   width:min(720px,100%);
   border-radius:24px;
-  overflow:hidden;
+  overflow:visible;
   border:1px solid var(--border);
   background:rgba(9,9,11,.98);
   box-shadow:var(--shadow);
@@ -279,7 +281,7 @@ a:hover{text-decoration:none}
 .castTable{
   border:1px solid rgba(255,255,255,.10);
   border-radius:18px;
-  overflow:hidden;
+  overflow:visible;
   background:rgba(10,12,16,.65);
 }
 .castRow{
@@ -316,7 +318,7 @@ a:hover{text-decoration:none}
   font-size:13px;
   line-height:1.2;
   white-space:nowrap;
-  overflow:hidden;
+  overflow:visible;
   text-overflow:ellipsis;
 }
 .castMeta{
@@ -344,7 +346,7 @@ a:hover{text-decoration:none}
   width:100%;
   aspect-ratio:16/9;
   border-radius:18px;
-  overflow:hidden;
+  overflow:visible;
   border:1px solid rgba(255,255,255,.12);
   background:black;
 }
