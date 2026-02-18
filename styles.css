@@ -1,11 +1,15 @@
 :root{
-  --bg:#09090b;
+  --bg:#141414;
   --panel:rgba(255,255,255,.06);
   --border:rgba(255,255,255,.12);
   --text:rgba(255,255,255,.92);
   --muted:rgba(255,255,255,.65);
   --muted2:rgba(255,255,255,.45);
   --shadow:0 10px 30px rgba(0,0,0,.35);
+
+  /* Netflix-szerű akcentus */
+  --accent:#e50914;
+  --accentDark:#b20710;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -21,15 +25,15 @@ a:hover{text-decoration:underline}
 
 .nav{
   position:sticky;top:0;z-index:20;
-  backdrop-filter:blur(12px);
-  background:rgba(9,9,11,.75);
-  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(10px);
+  background:rgba(20,20,20,.82);
+  border-bottom:1px solid rgba(255,255,255,.08);
 }
 .navRow{display:flex;align-items:center;gap:14px;height:56px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:950;letter-spacing:.2px}
 .badge{
-  width:28px;height:28px;border-radius:10px;
-  background:#fff;color:#09090b;
+  width:28px;height:28px;border-radius:8px;
+  background:var(--accent);color:#fff;
   display:inline-flex;align-items:center;justify-content:center;
   font-weight:950;
 }
@@ -51,9 +55,15 @@ a:hover{text-decoration:underline}
   cursor:pointer;
 }
 .btn:hover{background:rgba(255,255,255,.10)}
-.btn.primary{background:#fff;color:#09090b;border-color:#fff}
-.btn.primary:hover{background:rgba(255,255,255,.85)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary:hover{background:var(--accentDark);border-color:var(--accentDark)}
 .btn:disabled{opacity:.6;cursor:not-allowed}
+
+.btn.ghost{
+  background:rgba(109,109,110,.45);
+  border-color:rgba(109,109,110,.35);
+}
+.btn.ghost:hover{ background:rgba(109,109,110,.65); }
 
 .card{
   background:var(--panel);
@@ -98,13 +108,107 @@ a:hover{text-decoration:underline}
 }
 .row{display:flex;gap:10px;flex-wrap:wrap}
 
-.hero{
-  border-bottom:1px solid var(--border);
-  background:
-    radial-gradient(circle at top left, rgba(255,255,255,.10), transparent 55%),
-    radial-gradient(circle at 30% 10%, rgba(255,255,255,.08), transparent 50%);
+/* Netflix-like Home */
+.heroBanner{
+  position:relative;
+  min-height:420px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  background-size:cover;
+  background-position:center;
 }
-.heroInner{padding:26px 0}
+.heroBanner::before{
+  content:"";
+  position:absolute;inset:0;
+  background:
+    linear-gradient(90deg, rgba(20,20,20,.95) 0%, rgba(20,20,20,.65) 35%, rgba(20,20,20,.20) 65%, rgba(20,20,20,.95) 100%),
+    linear-gradient(180deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.85) 100%);
+}
+.heroInnerN{
+  position:relative;
+  padding:34px 0 26px;
+}
+.heroKicker{
+  font-size:12px;
+  color:rgba(255,255,255,.78);
+  font-weight:900;
+  letter-spacing:.25px;
+  text-transform:uppercase;
+}
+.heroTitle{
+  margin:10px 0 0;
+  font-size:40px;
+  font-weight:950;
+  letter-spacing:.2px;
+  line-height:1.05;
+}
+@media(min-width:860px){ .heroTitle{font-size:54px} }
+.heroMeta{
+  margin-top:10px;
+  color:rgba(255,255,255,.80);
+  font-size:13px;
+}
+.heroDesc{
+  margin-top:14px;
+  max-width:680px;
+  color:rgba(255,255,255,.80);
+  font-size:13px;
+  line-height:1.45;
+}
+.heroActions{
+  margin-top:16px;
+  display:flex;gap:10px;flex-wrap:wrap;
+}
+
+.rail{ margin-top:18px; }
+.railHead{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:10px;
+}
+.railTitle{
+  margin:0;
+  font-size:16px;
+  font-weight:950;
+}
+.railList{
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  padding:12px 0 4px;
+  scroll-snap-type:x proximity;
+}
+.railList::-webkit-scrollbar{height:8px}
+.railList::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:999px}
+.railList::-webkit-scrollbar-track{background:transparent}
+.railCard{
+  flex:0 0 auto;
+  width:132px;
+  scroll-snap-align:start;
+  text-decoration:none;
+}
+@media(min-width:700px){ .railCard{width:160px} }
+@media(min-width:1100px){ .railCard{width:190px} }
+.railPoster{
+  aspect-ratio:2/3;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
+  background-size:cover;
+  background-position:center;
+  box-shadow:0 10px 24px rgba(0,0,0,.35);
+  transition:transform .12s ease, filter .12s ease;
+}
+.railCard:hover .railPoster{ transform:scale(1.04); filter:brightness(1.05); }
+.railName{
+  margin-top:8px;
+  font-size:12px;
+  font-weight:900;
+  color:rgba(255,255,255,.86);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 
 .modalBack{
   position:fixed;inset:0;z-index:50;
@@ -156,7 +260,7 @@ a:hover{text-decoration:underline}
 .chip:hover{background:rgba(255,255,255,.10)}
 .chip.active{background:#fff;color:#09090b;border-color:#fff}
 
-/* Cast */
+/* Cast – (a korábbi javításod marad, itt is oké) */
 .castGrid{
   display:grid;
   grid-template-columns:1fr;
@@ -201,4 +305,21 @@ a:hover{text-decoration:underline}
   -webkit-line-clamp:3;
   -webkit-box-orient:vertical;
   overflow:hidden;
+}
+
+/* Player */
+.playerFrame{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+  border-radius:18px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.12);
+  background:black;
+}
+.playerFrame iframe,
+.playerFrame video{
+  width:100%;
+  height:100%;
+  display:block;
 }
