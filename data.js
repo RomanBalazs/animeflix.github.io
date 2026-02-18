@@ -24,7 +24,8 @@ window.ANIMEFLIX_DATA = window.ANIMEFLIX_DATA || {
           { season: 1, episodes: [
             { id: "ep1", title: "1. rész", type: "videa", src: "https://videa.hu/videok/film-animacio/death-note-01-zwAQAo6Vow5md7AT" }
           ]}
-           seasons: [
+          noteHu: "Videa jogtiszta forrás.",
+          seasons: [
           { season: 1, episodes: [
             { id: "ep2", title: "2. rész", type: "videa", src: "https://videa.hu/videok/film-animacio/death-note-02-TdmdJteMZelYWbPx" }
           ]}
