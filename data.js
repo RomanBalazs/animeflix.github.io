@@ -33,7 +33,7 @@ legalContent: {
         id: "e1",
         titleHu: "1. rész",
         durationMin: 24,
-        sources: [{ type:"mp4", url:"https://www.youtube.com/watch?v=dnHhcgT5mQM" }]
+        sources: [{ type:"mp4", url:"https://example.com/video.mp4" }]
       }]
     }]
   }
