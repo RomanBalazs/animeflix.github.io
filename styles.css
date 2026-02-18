@@ -18,9 +18,10 @@ body{
   font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
   background:var(--bg);
   color:var(--text);
+  overflow-x:hidden;
 }
 a{color:inherit;text-decoration:none}
-a:hover{text-decoration:underline}
+a:hover{text-decoration:none}
 .container{max-width:1100px;margin:0 auto;padding:0 16px}
 
 .nav{
@@ -260,36 +261,45 @@ a:hover{text-decoration:underline}
 .chip:hover{background:rgba(255,255,255,.10)}
 .chip.active{background:#fff;color:#09090b;border-color:#fff}
 
-/* Cast – (a korábbi javításod marad, itt is oké) */
-.castGrid{
+/* Cast – AniList-szerű kétoldalas sorok */
+.castWrap{margin-top:10px}
+.castTable{
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:18px;
+  overflow:hidden;
+  background:rgba(10,12,16,.65);
+}
+.castRow{
   display:grid;
   grid-template-columns:1fr;
-  gap:12px;
+  border-top:1px solid rgba(255,255,255,.08);
 }
-@media(min-width:520px){.castGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(min-width:860px){.castGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(min-width:1100px){.castGrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.castRow:first-child{border-top:none}
+@media(min-width:860px){.castRow{grid-template-columns:1fr 1fr}}
 
-.castCard{
-  border:1px solid var(--border);
-  background:rgba(255,255,255,.05);
-  border-radius:16px;
-  overflow:hidden;
-}
-.castTop{
+.castCell{
   display:flex;
+  align-items:center;
   gap:12px;
   padding:12px;
-  align-items:center;
+  min-width:0;
 }
+.castCell.rightCell{border-top:1px solid rgba(255,255,255,.08)}
+@media(min-width:860px){
+  .castCell.rightCell{border-top:none;border-left:1px solid rgba(255,255,255,.08)}
+}
+
 .castImg{
-  width:56px;height:56px;border-radius:16px;flex:0 0 auto;
-  background:rgba(255,255,255,.08);
-  border:1px solid rgba(255,255,255,.10);
+  width:56px;height:56px;
+  border-radius:12px;
   object-fit:cover;
+  flex:0 0 auto;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
 }
+.castInfo{min-width:0}
 .castName{
-  font-weight:900;
+  font-weight:950;
   font-size:13px;
   line-height:1.2;
   white-space:nowrap;
@@ -297,17 +307,25 @@ a:hover{text-decoration:underline}
   text-overflow:ellipsis;
 }
 .castMeta{
-  color:var(--muted);
-  font-size:12px;
   margin-top:4px;
-  line-height:1.25;
-  display:-webkit-box;
-  -webkit-line-clamp:3;
-  -webkit-box-orient:vertical;
-  overflow:hidden;
+  color:rgba(255,255,255,.68);
+  font-size:12px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.pill{
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.06);
+  border-radius:999px;
+  padding:4px 8px;
+  font-weight:850;
+  font-size:11px;
+  color:rgba(255,255,255,.80);
 }
 
 /* Player */
+
 .playerFrame{
   position:relative;
   width:100%;

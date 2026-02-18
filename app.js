@@ -75,9 +75,9 @@
   };
   const formatHu = (f) => FORMAT_HU[f] || (f || "—");
 
-
-  const SEASON_HU = { WINTER:"Tél", SPRING:"Tavasz", SUMMER:"Nyár", FALL:"Ősz" };
+  const SEASON_HU = { WINTER: "Tél", SPRING: "Tavasz", SUMMER: "Nyár", FALL: "Ősz" };
   const seasonHu = (s) => SEASON_HU[s] || (s || "—");
+
   const mediaTitle = (m) => m?.title?.english || m?.title?.romaji || m?.title?.native || ("AniList #" + m?.id);
   const mediaPoster = (m) => m?.coverImage?.extraLarge || m?.coverImage?.large || "";
   const formatDate = (d) => {
@@ -761,33 +761,44 @@
       `).join("")}
     `;
   }
-
   function renderCast(media) {
     const edges = media?.characters?.edges || [];
     if (!edges.length) return `<div class="p">Nincs elérhető szereplőlista.</div>`;
 
-    const cards = edges.map(ed => {
+    const rows = edges.slice(0, 24).map(ed => {
       const ch = ed?.node;
-      const va = (ed?.voiceActors || []).slice(0, 2);
+      const va = (ed?.voiceActors || [])[0];
+
       const chName = ch?.name?.full || ch?.name?.native || "—";
-      const role = ed?.role ? String(ed.role).toLowerCase() : "";
-      const roleHu = role === "main" ? "Főszereplő" : (role === "supporting" ? "Mellékszereplő" : "—");
-      const vaNames = va.map(x => x?.name?.full || x?.name?.native).filter(Boolean).join(", ") || "—";
       const chImg = ch?.image?.large || "";
+
+      const role = String(ed?.role || "");
+      const roleHu = role === "MAIN" ? "Főszereplő" : (role === "SUPPORTING" ? "Mellékszereplő" : (role ? role : "—"));
+
+      const vaName = va?.name?.full || va?.name?.native || "—";
+      const vaImg = va?.image?.large || "";
+
       return `
-        <div class="castCard">
-          <div class="castTop">
+        <div class="castRow">
+          <div class="castCell">
             ${chImg ? `<img class="castImg" src="${esc(chImg)}" alt="${esc(chName)}" loading="lazy" />` : `<div class="castImg"></div>`}
-            <div style="min-width:0">
+            <div class="castInfo">
               <div class="castName">${esc(chName)}</div>
-              <div class="castMeta">${esc(roleHu)}<br/>Szinkron (JP): ${esc(vaNames)}</div>
+              <div class="castMeta"><span class="pill">${esc(roleHu)}</span></div>
+            </div>
+          </div>
+          <div class="castCell rightCell">
+            ${vaImg ? `<img class="castImg" src="${esc(vaImg)}" alt="${esc(vaName)}" loading="lazy" />` : `<div class="castImg"></div>`}
+            <div class="castInfo">
+              <div class="castName">${esc(vaName)}</div>
+              <div class="castMeta"><span class="pill">Japanese</span></div>
             </div>
           </div>
         </div>
       `;
     }).join("");
 
-    return `<div class="castGrid" style="margin-top:10px">${cards}</div>`;
+    return `<div class="castWrap"><div class="castTable">${rows}</div></div>`;
   }
 
   async function pageAniDetails(anilistId) {
@@ -896,7 +907,6 @@
       `);
     }
   }
-
   function pageWatchAni(anilistId, epKey) {
     if (!requireProfile()) return;
     document.querySelector("header.nav").style.display = "block";
@@ -913,12 +923,106 @@
       return;
     }
 
+    function parseEpisodeKey(key) {
+      const s = String(key || "");
+      const m = s.match(/^s(\d+):(.+)$/i);
+      if (!m) return null;
+      return { season: Number(m[1]), epId: m[2] };
+    }
+
+    function findEpisode(lc, key) {
+      const p = parseEpisodeKey(key);
+      if (!p) return null;
+      const seasonObj = (lc?.seasons || []).find(x => Number(x.season) === p.season) || (lc?.seasons || [])[0];
+      if (!seasonObj) return null;
+      const epObj = (seasonObj?.episodes || []).find(e => String(e.id) === String(p.epId));
+      if (!epObj) return null;
+      return { seasonObj, epObj };
+    }
+
+    function youtubeEmbedUrl(url) {
+      const s = String(url || "").trim();
+      try {
+        const u = new URL(s);
+        if (u.hostname.includes("youtu.be")) {
+          const id = u.pathname.replace("/", "");
+          return id ? `https://www.youtube.com/embed/${id}` : s;
+        }
+        const v = u.searchParams.get("v");
+        if (v) return `https://www.youtube.com/embed/${v}`;
+        if (u.pathname.includes("/embed/")) return s;
+        return s;
+      } catch {
+        return s;
+      }
+    }
+
+    function videaTokenFromUrl(u) {
+      const s = String(u || "");
+      try {
+        const url = new URL(s);
+        const v = url.searchParams.get("v");
+        if (v) return v;
+        const last = url.pathname.split("/").filter(Boolean).pop() || "";
+        const parts = last.split("-");
+        return parts[parts.length - 1] || "";
+      } catch {
+        const parts = s.split("-");
+        return parts[parts.length - 1] || "";
+      }
+    }
+
+    function renderPlayer(ep) {
+      const type = String(ep?.type || "").toLowerCase();
+      const src = String(ep?.src || "").trim();
+      if (!src) return `<div class="p">Hiányzó forrás.</div>`;
+
+      if (type === "youtube") {
+        const embed = youtubeEmbedUrl(src);
+        return `
+          <div class="playerFrame"><iframe src="${esc(embed)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+          <div class="small" style="margin-top:10px"><a href="${esc(src)}" target="_blank" rel="noopener">Megnyitás új lapon</a></div>
+        `;
+      }
+
+      if (type === "videa") {
+        const token = videaTokenFromUrl(src);
+        const embed = token ? `https://videa.hu/player?v=${encodeURIComponent(token)}` : src;
+        return `
+          <div class="playerFrame"><iframe src="${esc(embed)}" allow="autoplay" allowfullscreen></iframe></div>
+          <div class="small" style="margin-top:10px">Ha üres: valószínűleg tiltott beágyazás. <a href="${esc(src)}" target="_blank" rel="noopener">Megnyitás új lapon</a></div>
+        `;
+      }
+
+      if (type === "mp4" || type === "video") {
+        return `
+          <div class="playerFrame"><video controls playsinline src="${esc(src)}"></video></div>
+          <div class="small" style="margin-top:10px"><a href="${esc(src)}" target="_blank" rel="noopener">Megnyitás új lapon</a></div>
+        `;
+      }
+
+      // iframe / default
+      return `
+        <div class="playerFrame"><iframe src="${esc(src)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+        <div class="small" style="margin-top:10px"><a href="${esc(src)}" target="_blank" rel="noopener">Megnyitás új lapon</a></div>
+      `;
+    }
+
+    const found = findEpisode(legal, epKey);
+
     const doRender = () => {
+      const epTitle = found?.epObj?.title || found?.epObj?.id || "—";
       $app.innerHTML = pageWrap(`
         <div class="card" style="padding:16px">
-          <div style="font-weight:900">Lejátszó (demo)</div>
-          <div class="p">Itt jelenjen meg a jogtiszta videó (YouTube embed / saját MP4) a data.js alapján.</div>
-          <div class="small" style="margin-top:8px">Epizód kulcs: <span class="kbd">${esc(epKey)}</span></div>
+          <div style="font-weight:900">Lejátszó</div>
+          <div class="small" style="margin-top:8px">Epizód: <span class="kbd">${esc(epTitle)}</span> • kulcs: <span class="kbd">${esc(epKey)}</span></div>
+
+          ${legal?.noteHu ? `<div class="small" style="margin-top:8px;opacity:.9">${esc(legal.noteHu)}</div>` : ""}
+
+          <div style="margin-top:12px">
+            ${found ? renderPlayer(found.epObj) : `<div class="p">Nem található epizód ehhez a kulcshoz. Ellenőrizd a data.js-ben.</div>`}
+          </div>
+
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
             <a class="btn" href="#/ani/${esc(anilistId)}">Vissza</a>
             ${getPremium() ? "" : `<a class="btn" href="#/account">Premium</a>`}
