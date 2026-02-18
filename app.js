@@ -747,25 +747,28 @@
       return `<div class="p">Ehhez a címhez nincs csatolt jogtiszta forrás. (data.js → legalContent)</div>`;
     }
     return `
-      ${(legal.seasons || []).map(s => `
-        <div style="margin-top:10px">
-          <div style="font-weight:900">Évad ${esc(s.season)}</div>
-          <div class="chips" style="margin-top:8px">
-            ${(s.episodes || []).map(ep => `
-              <a class="chip" href="#/watch/ani/${esc(anilistId)}/s${esc(s.season)}:${esc(ep.id)}" style="text-decoration:none">
-                ${esc(ep.title || ep.id)}
-              </a>
-            `).join("")}
+      <div class="episodesWrap">
+        ${(legal.seasons || []).map(s => `
+          <div style="margin-top:10px">
+            <div style="font-weight:900">Évad ${esc(s.season)}</div>
+            <div class="chips" style="margin-top:8px">
+              ${(s.episodes || []).map(ep => `
+                <a class="chip" href="#/watch/ani/${esc(anilistId)}/s${esc(s.season)}:${esc(ep.id)}" style="text-decoration:none">
+                  ${esc(ep.title || ep.id)}
+                </a>
+              `).join("")}
+            </div>
           </div>
-        </div>
-      `).join("")}
+        `).join("")}
+      </div>
     `;
   }
+
   function renderCast(media) {
     const edges = media?.characters?.edges || [];
     if (!edges.length) return `<div class="p">Nincs elérhető szereplőlista.</div>`;
 
-    const rows = edges.slice(0, 24).map(ed => {
+    const rows = edges.slice(0, 30).map(ed => {
       const ch = ed?.node;
       const va = (ed?.voiceActors || [])[0];
 
@@ -777,22 +780,23 @@
 
       const vaName = va?.name?.full || va?.name?.native || "—";
       const vaImg = va?.image?.large || "";
+      const lang = va?.languageV2 || "Japanese";
 
       return `
         <div class="castRow">
-          <div class="castCell">
-            ${chImg ? `<img class="castImg" src="${esc(chImg)}" alt="${esc(chName)}" loading="lazy" />` : `<div class="castImg"></div>`}
-            <div class="castInfo">
-              <div class="castName">${esc(chName)}</div>
-              <div class="castMeta"><span class="pill">${esc(roleHu)}</span></div>
+          <div class="castSide castLeft">
+            ${chImg ? `<img class="castAvatar" src="${esc(chImg)}" alt="${esc(chName)}" loading="lazy" />` : `<div class="castAvatar"></div>`}
+            <div class="castText">
+              <div class="castPrimary">${esc(chName)}</div>
+              <div class="castSecondary"><span class="pill">${esc(roleHu)}</span></div>
             </div>
           </div>
-          <div class="castCell rightCell">
-            ${vaImg ? `<img class="castImg" src="${esc(vaImg)}" alt="${esc(vaName)}" loading="lazy" />` : `<div class="castImg"></div>`}
-            <div class="castInfo">
-              <div class="castName">${esc(vaName)}</div>
-              <div class="castMeta"><span class="pill">Japanese</span></div>
+          <div class="castSide castRight">
+            <div class="castText">
+              <div class="castPrimary">${esc(vaName)}</div>
+              <div class="castSecondary"><span class="pill">${esc(lang)}</span></div>
             </div>
+            ${vaImg ? `<img class="castAvatar" src="${esc(vaImg)}" alt="${esc(vaName)}" loading="lazy" />` : `<div class="castAvatar"></div>`}
           </div>
         </div>
       `;
@@ -889,12 +893,11 @@
               ${legal ? `<div class="small" style="margin-top:10px;opacity:.85">${esc(legal.noteHu || "")}</div>` : ""}
             </div>
 
-            <div class="card" style="padding:16px">
-              <div style="font-weight:900">Szereplők + szinkronhangok (JP)</div>
-              ${renderCast(m)}
-            </div>
+          </div>
 
-            
+          <div class="card" style="padding:16px;margin-top:12px">
+            <div style="font-weight:900">Szereplők + szinkronhangok (JP)</div>
+            ${renderCast(m)}
           </div>
         </div>`;
 

@@ -278,7 +278,20 @@ a:hover{text-decoration:none}
 .chip:hover{background:rgba(255,255,255,.10)}
 .chip.active{background:#fff;color:#09090b;border-color:#fff}
 
-/* Cast – AniList-szerű kétoldalas sorok */
+
+/* Epizód lista: sok rész esetén belső scroll, ne tolja szét a layoutot */
+.episodesWrap{
+  margin-top:10px;
+  max-height:260px;
+  overflow:auto;
+  padding-right:6px;
+}
+.episodesWrap::-webkit-scrollbar{width:8px;height:8px}
+.episodesWrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:999px}
+.episodesWrap::-webkit-scrollbar-track{background:transparent}
+
+
+/* Cast – AniList-szerű (karakter bal, szinkronhang jobb) */
 .castWrap{margin-top:10px}
 .castTable{
   border:1px solid rgba(255,255,255,.10);
@@ -287,35 +300,37 @@ a:hover{text-decoration:none}
   background:rgba(10,12,16,.65);
 }
 .castRow{
-  display:grid;
-  grid-template-columns:1fr;
+  display:flex;
+  flex-direction:column;
   border-top:1px solid rgba(255,255,255,.08);
 }
 .castRow:first-child{border-top:none}
-@media(min-width:860px){.castRow{grid-template-columns:1fr 1fr}}
-
-.castCell{
+.castSide{
   display:flex;
   align-items:center;
   gap:12px;
   padding:12px;
   min-width:0;
 }
-.castCell.rightCell{border-top:1px solid rgba(255,255,255,.08)}
-@media(min-width:860px){
-  .castCell.rightCell{border-top:none;border-left:1px solid rgba(255,255,255,.08)}
+.castSide.castRight{
+  border-top:1px solid rgba(255,255,255,.08);
+  justify-content:space-between;
 }
-
-.castImg{
-  width:72px;height:56px;
-  border-radius:12px;
+@media(min-width:860px){
+  .castRow{flex-direction:row}
+  .castSide{flex:1}
+  .castSide.castRight{border-top:none;border-left:1px solid rgba(255,255,255,.08)}
+}
+.castAvatar{
+  width:52px;height:52px;
+  border-radius:10px;
   object-fit:cover;
   flex:0 0 auto;
   border:1px solid rgba(255,255,255,.10);
   background:rgba(255,255,255,.06);
 }
-.castInfo{min-width:0}
-.castName{
+.castText{min-width:0}
+.castPrimary{
   font-weight:950;
   font-size:13px;
   line-height:1.2;
@@ -324,7 +339,7 @@ a:hover{text-decoration:none}
   text-overflow:ellipsis;
   max-width:100%;
 }
-.castMeta{
+.castSecondary{
   margin-top:4px;
   color:rgba(255,255,255,.68);
   font-size:12px;
