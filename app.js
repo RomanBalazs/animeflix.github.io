@@ -254,6 +254,36 @@
     }
   `;
 
+  const Q_TOP_RATED = `
+    query ($page:Int,$perPage:Int) {
+      Page(page:$page, perPage:$perPage) {
+        media(type: ANIME, sort: SCORE_DESC, isAdult:false) {
+          id siteUrl
+          title { romaji english native }
+          coverImage { extraLarge large }
+          format status episodes season seasonYear
+          startDate { year month day }
+          averageScore genres
+        }
+      }
+    }
+  `;
+
+  const Q_NEW = `
+    query ($page:Int,$perPage:Int) {
+      Page(page:$page, perPage:$perPage) {
+        media(type: ANIME, sort: START_DATE_DESC, isAdult:false) {
+          id siteUrl
+          title { romaji english native }
+          coverImage { extraLarge large }
+          format status episodes season seasonYear
+          startDate { year month day }
+          averageScore genres
+        }
+      }
+    }
+  `;
+
   const Q_SEARCH = `
     query ($page:Int,$perPage:Int,$search:String,$genreIn:[String]) {
       Page(page:$page, perPage:$perPage) {
@@ -474,51 +504,107 @@
     document.querySelector("header.nav").style.display = "block";
 
     $app.innerHTML =
-      `<div class="hero"><div class="container heroInner">
-        <div class="small" style="font-weight:900">Katalógus (AniList) – reklámmentes</div>
-        <h1 class="h1" style="margin-top:8px">AnimeFlix</h1>
-        <div class="p">Reklám csak epizód indításkor, 90 perc cooldown. Premiumban nincs.</div>
-      </div></div>` +
-      `<div class="container" style="padding:16px 16px 26px">
+      `<div class="heroBanner"><div class="container heroInnerN">
+        <div class="heroKicker">Most népszerű</div>
+        <div class="heroTitle">Betöltés…</div>
+        <div class="heroMeta">Katalógus: AniList • reklámmentes</div>
+        <div class="heroDesc">Az epizódoknál jelenik meg hirdetés (90 percenként), Premiumban nincs.</div>
+        <div class="heroActions">
+          <button class="btn primary" disabled>Lejátszás</button>
+          <button class="btn ghost" disabled>Részletek</button>
+        </div>
+      </div></div>
+      <div class="container" style="padding:16px 16px 26px">
         <div class="card" style="padding:16px;margin-top:12px"><div style="font-weight:900">Betöltés…</div></div>
       </div>`;
 
+    function rail(title, items) {
+      return `
+        <section class="rail">
+          <div class="railHead">
+            <h2 class="railTitle">${esc(title)}</h2>
+            <span></span>
+          </div>
+          <div class="railList">
+            ${items.map(m => `
+              <a class="railCard" href="#/ani/${esc(m.id)}">
+                <div class="railPoster" style="background-image:url('${esc(m.poster)}')"></div>
+                <div class="railName">${esc(m.title)}</div>
+              </a>
+            `).join("")}
+          </div>
+        </section>
+      `;
+    }
+
     try {
-      const [tr, pop] = await Promise.all([
+      const [tr, pop, top, nw] = await Promise.all([
         anilistQuery(Q_TRENDING, { page: 1, perPage: 20 }),
-        anilistQuery(Q_POPULAR, { page: 1, perPage: 20 })
+        anilistQuery(Q_POPULAR, { page: 1, perPage: 20 }),
+        anilistQuery(Q_TOP_RATED, { page: 1, perPage: 20 }),
+        anilistQuery(Q_NEW, { page: 1, perPage: 20 })
       ]);
 
-      const toItem = (m) => ({
-        id: String(m.id),
-        title: mediaTitle(m),
-        poster: mediaPoster(m),
+      const map = (arr) => (arr || []).map(x => ({
+        id: String(x.id),
+        title: mediaTitle(x),
+        poster: mediaPoster(x),
         meta: [
-          (m.startDate?.year || m.seasonYear || ""),
-          (m.episodes ? `${m.episodes} ep` : (m.status === "RELEASING" ? "? ep" : "")),
-          statusHu(m.status)
-        ].filter(Boolean).join(" • ")
-      });
+          (x.startDate?.year || x.seasonYear || ""),
+          (x.season ? seasonHu(x.season) : ""),
+          (x.episodes ? `${x.episodes} ep` : (x.status === "RELEASING" ? "? ep" : "")),
+          statusHu(x.status)
+        ].filter(Boolean).join(" • "),
+        genres: (x.genres || []).slice(0, 3).map(genreHu).join(", "),
+        raw: x
+      }));
 
-      const trending = (tr?.data?.Page?.media || []).map(toItem);
-      const popular = (pop?.data?.Page?.media || []).map(toItem);
+      const trending = map(tr?.data?.Page?.media);
+      const popular  = map(pop?.data?.Page?.media);
+      const topRated = map(top?.data?.Page?.media);
+      const newest   = map(nw?.data?.Page?.media);
+
+      const featured = trending[0] || popular[0] || topRated[0] || newest[0];
+
+      const legal = featured ? getLegal(featured.id) : null;
+      const playableKey = featured ? firstEpisodeKey(legal) : null;
+
+      const featuredDesc =
+        featured
+          ? (() => {
+              const hu = getHungarianDescription(featured.raw);
+              const descHu = hu.text || autoHuFromMeta(featured.raw);
+              const t = String(descHu || "").trim();
+              return t.length > 260 ? (t.slice(0, 260).trim() + "…") : t;
+            })()
+          : "";
+
+      const heroBg = featured?.poster ? `style="background-image:url('${esc(featured.poster)}')"` : "";
 
       $app.innerHTML =
-        `<div class="hero"><div class="container heroInner">
-          <div class="small" style="font-weight:900">Katalógus (AniList) – reklámmentes</div>
-          <h1 class="h1" style="margin-top:8px">AnimeFlix</h1>
-          <div class="p">Reklám csak epizód indításkor, 90 perc cooldown. Premiumban nincs.</div>
-        </div></div>` +
+        `<div class="heroBanner" ${heroBg}>
+          <div class="container heroInnerN">
+            <div class="heroKicker">Most népszerű</div>
+            <h1 class="heroTitle">${esc(featured?.title || "AnimeFlix")}</h1>
+            <div class="heroMeta">${esc(featured?.meta || "Katalógus: AniList • reklámmentes")}${featured?.genres ? ` • ${esc(featured.genres)}` : ""}</div>
+            <div class="heroDesc">${esc(featuredDesc || "Kattints a részletekre, vagy indíts epizódot jogtiszta forrásból.")}</div>
+            <div class="heroActions">
+              ${
+                playableKey
+                ? `<a class="btn primary" href="#/watch/ani/${esc(featured.id)}/${esc(playableKey)}">Lejátszás</a>`
+                : `<a class="btn primary" href="#/ani/${esc(featured?.id || "")}">Részletek</a>`
+              }
+              <a class="btn ghost" href="#/ani/${esc(featured?.id || "")}">További infó</a>
+              <a class="btn" href="#/year/2025">2025</a>
+              <a class="btn" href="#/discover">Keresés</a>
+            </div>
+          </div>
+        </div>` +
         `<div class="container" style="padding:16px 16px 26px">
-          <section style="margin-top:6px">
-            <div class="h2">Trending</div>
-            <div style="margin-top:10px">${grid(trending)}</div>
-          </section>
-
-          <section style="margin-top:16px">
-            <div class="h2">Népszerű</div>
-            <div style="margin-top:10px">${grid(popular)}</div>
-          </section>
+          ${rail("Trending most", trending)}
+          ${rail("Népszerű az AnimeFlixen", popular)}
+          ${rail("Legjobbra értékelt", topRated)}
+          ${rail("Új megjelenések", newest)}
         </div>`;
     } catch (e) {
       $app.innerHTML = pageWrap(`
