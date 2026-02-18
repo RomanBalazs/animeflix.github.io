@@ -75,9 +75,6 @@
   };
   const formatHu = (f) => FORMAT_HU[f] || (f || "—");
 
-  const SEASON_HU = { WINTER:"Tél", SPRING:"Tavasz", SUMMER:"Nyár", FALL:"Ősz" };
-  const seasonHu = (s) => SEASON_HU[s] || (s || "—");
-
   const mediaTitle = (m) => m?.title?.english || m?.title?.romaji || m?.title?.native || ("AniList #" + m?.id);
   const mediaPoster = (m) => m?.coverImage?.extraLarge || m?.coverImage?.large || "";
   const formatDate = (d) => {
@@ -110,36 +107,20 @@
     const genres = (media?.genres || []).slice(0, 4).map(genreHu).join(", ");
 
     const parts = [];
-    parts.push(`„${title}”${genres ? " (" + genres + ")" : ""}${year ? " – " + year : ""}.`);
+    parts.push(`„${title}” ${genres ? " (" + genres + ")" : ""} ${year ? "– " + year : ""}.`);
     parts.push(`Formátum: ${fmt}. Epizódok: ${eps}. Státusz: ${st}.`);
     parts.push(`AniList pontszám: ${score}.`);
-    parts.push(`Részletes magyar történetösszefoglaló ehhez a címhez még nincs a HU adatbázisban.`);
+    parts.push(`Részletes magyar leírás ehhez a címhez még nincs a HU adatbázisban.`);
     return parts.join(" ");
   }
 
   const pageWrap = (content) => `<div class="container" style="padding:18px 16px 26px">${content}</div>`;
   const nav = (to) => (location.hash = "#" + to);
-
-  function getHashParts() {
+  const route = () => {
     const raw = (location.hash || "#/").slice(1);
-    const [path, queryStr] = raw.split("?");
-    const q = {};
-    if (queryStr) {
-      queryStr.split("&").forEach(p => {
-        const [k, v] = p.split("=");
-        if (!k) return;
-        q[decodeURIComponent(k)] = decodeURIComponent(v || "");
-      });
-    }
-    return { path: path || "/", query: q };
-  }
-
-  function buildQuery(obj) {
-    const parts = Object.entries(obj || {})
-      .filter(([,v]) => v !== undefined && v !== null && String(v) !== "")
-      .map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`);
-    return parts.length ? ("?" + parts.join("&")) : "";
-  }
+    const [path] = raw.split("?");
+    return { path: path || "/" };
+  };
 
   const getAuth = () => {
     const raw = localStorage.getItem(K.auth);
@@ -193,7 +174,8 @@
     const c = raw ? JSON.parse(raw) : {};
     const e = c[key];
     if (!e) return null;
-    if (Date.now() - e.t > 6 * 60 * 60 * 1000) return null; // 6 óra
+    // 6 óra
+    if (Date.now() - e.t > 6 * 60 * 60 * 1000) return null;
     return e.v;
   };
   const cacheSet = (key, v) => {
@@ -247,9 +229,10 @@
           id siteUrl
           title { romaji english native }
           coverImage { extraLarge large }
-          format status episodes season seasonYear
+          format status episodes
           startDate { year month day }
-          averageScore genres
+          seasonYear averageScore genres
+          description(asHtml:false)
         }
       }
     }
@@ -262,9 +245,10 @@
           id siteUrl
           title { romaji english native }
           coverImage { extraLarge large }
-          format status episodes season seasonYear
+          format status episodes
           startDate { year month day }
-          averageScore genres
+          seasonYear averageScore genres
+          description(asHtml:false)
         }
       }
     }
@@ -278,25 +262,10 @@
           id siteUrl
           title { romaji english native }
           coverImage { extraLarge large }
-          format status episodes season seasonYear
+          format status episodes
           startDate { year month day }
-          averageScore genres
-        }
-      }
-    }
-  `;
-
-  const Q_YEAR = `
-    query ($page:Int,$perPage:Int,$year:Int,$season:MediaSeason) {
-      Page(page:$page, perPage:$perPage) {
-        pageInfo { currentPage lastPage }
-        media(type: ANIME, seasonYear:$year, season:$season, sort: POPULARITY_DESC, isAdult:false) {
-          id siteUrl
-          title { romaji english native }
-          coverImage { extraLarge large }
-          format status episodes season seasonYear
-          startDate { year month day }
-          averageScore genres
+          seasonYear averageScore genres
+          description(asHtml:false)
         }
       }
     }
@@ -308,10 +277,10 @@
         id siteUrl
         title { romaji english native }
         coverImage { extraLarge large }
-        format status episodes season seasonYear
+        format status episodes
         startDate { year month day }
         endDate { year month day }
-        averageScore genres
+        seasonYear averageScore genres
         description(asHtml:false)
         characters(page:1, perPage:12, sort:[ROLE, RELEVANCE]) {
           edges {
@@ -424,113 +393,8 @@
     return s && e ? `s${s.season}:${e.id}` : null;
   }
 
-  function parseEpisodeKey(epKey) {
-    const m = String(epKey || "").match(/^s(\d+):(.+)$/);
-    if (!m) return null;
-    return { season: Number(m[1]), eid: m[2] };
-  }
-
-  function findEpisode(legal, epKey) {
-    const k = parseEpisodeKey(epKey);
-    if (!legal || !k) return null;
-    const seasons = legal.seasons || [];
-    for (const s of seasons) {
-      if (Number(s.season) !== k.season) continue;
-      const eps = s.episodes || [];
-      for (const ep of eps) {
-        if (String(ep.id) === String(k.eid)) return { season: s, episode: ep };
-      }
-    }
-    return null;
-  }
-
-  function youtubeIdFromUrl(url) {
-    const u = String(url || "").trim();
-    if (!u) return "";
-    const em = u.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{6,})/);
-    if (em) return em[1];
-    const sh = u.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/);
-    if (sh) return sh[1];
-    const w = u.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
-    if (w) return w[1];
-    return "";
-  }
-
-  function videaCodeFromUrl(url) {
-    const u = String(url || "").trim();
-    if (!u) return "";
-    const pv = u.match(/[?&]v=([A-Za-z0-9_-]{6,})/);
-    if (pv) return pv[1];
-    const lastHyphen = u.match(/-([A-Za-z0-9]{10,})$/);
-    if (lastHyphen) return lastHyphen[1];
-    const lastSeg = u.match(/\/([A-Za-z0-9]{10,})$/);
-    if (lastSeg) return lastSeg[1];
-    return "";
-  }
-
-  function normalizeEpisodeSrc(ep) {
-    const type = String(ep?.type || "").toLowerCase();
-    const src = String(ep?.src || "").trim();
-
-    if (type === "youtube") {
-      const id = youtubeIdFromUrl(src) || src;
-      if (!id) return "";
-      return "https://www.youtube.com/embed/" + id + "?autoplay=1&rel=0&modestbranding=1";
-    }
-
-    if (type === "videa") {
-      // src lehet videó oldal is, de az embed iframe a /player?v=KÓD
-      if (/videa\.hu\/player\?v=/.test(src)) return src.startsWith("//") ? ("https:" + src) : src;
-      const code = videaCodeFromUrl(src);
-      if (!code) return "";
-      return "https://videa.hu/player?v=" + code;
-    }
-
-    if (type === "mp4" || type === "video") {
-      return src;
-    }
-
-    return src;
-  }
-
-  function renderEpisodePlayerHtml(ep) {
-    const type = String(ep?.type || "").toLowerCase();
-    const src = normalizeEpisodeSrc(ep);
-
-    if (!src) return `<div class="p">Nincs lejátszható forrás URL.</div>`;
-
-    if (type === "youtube" || type === "videa") {
-      return `
-        <div class="playerFrame">
-          <iframe
-            src="${esc(src)}"
-            title="Player"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowfullscreen></iframe>
-        </div>
-      `;
-    }
-
-    if (type === "mp4" || type === "video") {
-      return `
-        <div class="playerFrame">
-          <video controls playsinline style="width:100%;height:100%;background:black">
-            <source src="${esc(src)}" type="video/mp4" />
-            A böngésződ nem támogatja a HTML5 videót.
-          </video>
-        </div>
-      `;
-    }
-
-    return `
-      <div class="p">Ezt a forrást nem tudom biztonságosan beágyazni. Megnyitás új lapon:</div>
-      <div style="margin-top:10px"><a class="btn primary" target="_blank" rel="noreferrer" href="${esc(src)}">Forrás megnyitása</a></div>
-    `;
-  }
-
   function setNavActive() {
-    const { path } = getHashParts();
+    const { path } = route();
     document.querySelectorAll(".navLink[data-route]").forEach(a => {
       const p = a.getAttribute("data-route");
       if (p && path.startsWith(p)) a.classList.add("active");
@@ -605,20 +469,6 @@
     });
   }
 
-  function toItem(m) {
-    return {
-      id: String(m.id),
-      title: mediaTitle(m),
-      poster: mediaPoster(m),
-      meta: [
-        (m.startDate?.year || m.seasonYear || ""),
-        (m.season ? seasonHu(m.season) : ""),
-        (m.episodes ? `${m.episodes} ep` : (m.status === "RELEASING" ? "? ep" : "")),
-        statusHu(m.status)
-      ].filter(Boolean).join(" • ")
-    };
-  }
-
   async function pageBrowse() {
     if (!requireProfile()) return;
     document.querySelector("header.nav").style.display = "block";
@@ -628,10 +478,6 @@
         <div class="small" style="font-weight:900">Katalógus (AniList) – reklámmentes</div>
         <h1 class="h1" style="margin-top:8px">AnimeFlix</h1>
         <div class="p">Reklám csak epizód indításkor, 90 perc cooldown. Premiumban nincs.</div>
-        <div class="chips" style="margin-top:12px">
-          <a class="chip" href="#/year/2025" style="text-decoration:none">2025 animék</a>
-          <a class="chip" href="#/discover" style="text-decoration:none">Keresés</a>
-        </div>
       </div></div>` +
       `<div class="container" style="padding:16px 16px 26px">
         <div class="card" style="padding:16px;margin-top:12px"><div style="font-weight:900">Betöltés…</div></div>
@@ -643,6 +489,17 @@
         anilistQuery(Q_POPULAR, { page: 1, perPage: 20 })
       ]);
 
+      const toItem = (m) => ({
+        id: String(m.id),
+        title: mediaTitle(m),
+        poster: mediaPoster(m),
+        meta: [
+          (m.startDate?.year || m.seasonYear || ""),
+          (m.episodes ? `${m.episodes} ep` : (m.status === "RELEASING" ? "? ep" : "")),
+          statusHu(m.status)
+        ].filter(Boolean).join(" • ")
+      });
+
       const trending = (tr?.data?.Page?.media || []).map(toItem);
       const popular = (pop?.data?.Page?.media || []).map(toItem);
 
@@ -651,10 +508,6 @@
           <div class="small" style="font-weight:900">Katalógus (AniList) – reklámmentes</div>
           <h1 class="h1" style="margin-top:8px">AnimeFlix</h1>
           <div class="p">Reklám csak epizód indításkor, 90 perc cooldown. Premiumban nincs.</div>
-          <div class="chips" style="margin-top:12px">
-            <a class="chip" href="#/year/2025" style="text-decoration:none">2025 animék</a>
-            <a class="chip" href="#/discover" style="text-decoration:none">Keresés</a>
-          </div>
         </div></div>` +
         `<div class="container" style="padding:16px 16px 26px">
           <section style="margin-top:6px">
@@ -675,85 +528,6 @@
         </div>
       `);
     }
-  }
-
-  async function pageYear(year, season, page) {
-    if (!requireProfile()) return;
-    document.querySelector("header.nav").style.display = "block";
-
-    const y = Number(year) || 2025;
-    const s = season || "";
-    const p = Number(page) || 1;
-
-    $app.innerHTML = pageWrap(`
-      <div class="h1">${esc(String(y))} animék</div>
-      <div class="p">AniList lista, reklámmentes. Szűrés szezon szerint.</div>
-
-      <div class="card" style="padding:16px;margin-top:12px">
-        <div class="row">
-          <select id="seasonSel" class="select" style="flex:1;min-width:220px">
-            <option value="">Szezon: bármely</option>
-            <option value="WINTER">Tél</option>
-            <option value="SPRING">Tavasz</option>
-            <option value="SUMMER">Nyár</option>
-            <option value="FALL">Ősz</option>
-          </select>
-          <button class="btn primary" id="apply">Szűrés</button>
-          <a class="btn" href="#/discover">Keresés</a>
-        </div>
-        <div class="small" style="margin-top:10px" id="meta">Betöltés…</div>
-      </div>
-
-      <div style="margin-top:12px" id="results"></div>
-      <div style="margin-top:12px" id="pager"></div>
-    `);
-
-    const $seasonSel = document.getElementById("seasonSel");
-    const $meta = document.getElementById("meta");
-    const $results = document.getElementById("results");
-    const $pager = document.getElementById("pager");
-
-    $seasonSel.value = s;
-
-    async function run(pp) {
-      $meta.textContent = "Betöltés…";
-      $results.innerHTML = `<div class="card" style="padding:16px"><div style="font-weight:900">Betöltés…</div></div>`;
-      $pager.innerHTML = "";
-
-      try {
-        const js = await anilistQuery(Q_YEAR, { page: pp, perPage: 24, year: y, season: $seasonSel.value || null });
-        const info = js?.data?.Page?.pageInfo;
-        const items = (js?.data?.Page?.media || []).map(toItem);
-
-        const lastPage = info?.lastPage || 1;
-        $meta.textContent = `Találatok: ${items.length} • Oldal: ${pp}/${lastPage}${$seasonSel.value ? " • " + seasonHu($seasonSel.value) : ""}`;
-
-        $results.innerHTML = items.length ? grid(items) : `<div class="small">Nincs találat.</div>`;
-
-        $pager.innerHTML = `
-          <div class="row" style="justify-content:space-between">
-            <button class="btn" id="prev" ${pp <= 1 ? "disabled":""}>Előző</button>
-            <div class="small">Oldal: ${pp}/${lastPage}</div>
-            <button class="btn" id="next" ${pp >= lastPage ? "disabled":""}>Következő</button>
-          </div>
-        `;
-
-        const prevQ = buildQuery({ s: $seasonSel.value || "", p: Math.max(1, pp - 1) });
-        const nextQ = buildQuery({ s: $seasonSel.value || "", p: Math.min(lastPage, pp + 1) });
-
-        document.getElementById("prev").onclick = () => nav(`/year/${y}${prevQ}`);
-        document.getElementById("next").onclick = () => nav(`/year/${y}${nextQ}`);
-      } catch (e) {
-        $meta.textContent = "Hiba: " + (e.message || e);
-        $results.innerHTML = "";
-      }
-    }
-
-    document.getElementById("apply").onclick = () => {
-      nav(`/year/${y}${buildQuery({ s: $seasonSel.value || "", p: 1 })}`);
-    };
-
-    run(p);
   }
 
   async function pageDiscover(prefillGenre) {
@@ -814,7 +588,16 @@
 
         const js = await anilistQuery(Q_SEARCH, { page: state.page, perPage: state.perPage, search, genreIn });
         const info = js?.data?.Page?.pageInfo;
-        const items = (js?.data?.Page?.media || []).map(toItem);
+        const items = (js?.data?.Page?.media || []).map(m => ({
+          id: String(m.id),
+          title: mediaTitle(m),
+          poster: mediaPoster(m),
+          meta: [
+            (m.startDate?.year || m.seasonYear || ""),
+            (m.episodes ? `${m.episodes} ep` : (m.status === "RELEASING" ? "? ep" : "")),
+            statusHu(m.status)
+          ].filter(Boolean).join(" • ")
+        }));
 
         state.lastPage = info?.lastPage || 1;
         $meta.textContent = `Találatok: ${items.length} • Oldal: ${state.page}/${state.lastPage}`;
@@ -861,7 +644,7 @@
       wrap.innerHTML = gl.map(g => `<button class="chip" data-g="${esc(g)}">${esc(genreHu(g))}</button>`).join("");
       wrap.querySelectorAll("button[data-g]").forEach(b=>{
         b.addEventListener("click", ()=>{
-          nav("/discover" + buildQuery({ g: b.getAttribute("data-g") }));
+          nav("/discover?g=" + encodeURIComponent(b.getAttribute("data-g")));
         });
       });
     } catch (e) {
@@ -946,8 +729,11 @@
       const score = m?.averageScore ? (m.averageScore + "/100") : "—";
       const genres = (m?.genres || []).slice(0, 10);
 
+      // HU leírás: DB -> ha nincs, auto meta HU
       const hu = getHungarianDescription(m);
       const descHu = hu.text || autoHuFromMeta(m);
+
+      // EN forrás leírás: rejtve (opcionális)
       const descEn = stripHtml(m?.description || "");
 
       const inList = new Set(getWatchlist()).has("ani:" + anilistId);
@@ -1038,59 +824,15 @@
       return;
     }
 
-    const found = findEpisode(legal, epKey);
-    if (!found || !found.episode) {
-      $app.innerHTML = pageWrap(`
-        <div class="card" style="padding:16px">
-          <div style="font-weight:900">Nem találom ezt az epizódot</div>
-          <div class="p">Kulcs: <span class="kbd">${esc(epKey)}</span></div>
-          <div class="p" style="margin-top:10px">Ellenőrizd a <span class="kbd">data.js</span> bejegyzést (évadszám + epizód ID).</div>
-          <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-            <a class="btn" href="#/ani/${esc(anilistId)}">Vissza</a>
-          </div>
-        </div>
-      `);
-      return;
-    }
-
-    const s = found.season;
-    const ep = found.episode;
-    const eps = (s.episodes || []).slice();
-    const idx = eps.findIndex(x => String(x.id) === String(ep.id));
-
-    const prevKey = idx > 0 ? `s${s.season}:${eps[idx - 1].id}` : null;
-    const nextKey = (idx >= 0 && idx < eps.length - 1) ? `s${s.season}:${eps[idx + 1].id}` : null;
-
     const doRender = () => {
-      const playerHtml = renderEpisodePlayerHtml(ep);
-
       $app.innerHTML = pageWrap(`
         <div class="card" style="padding:16px">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-            <div>
-              <div style="font-weight:950;font-size:18px">Lejátszás</div>
-              <div class="p" style="margin-top:6px">
-                Évad ${esc(String(s.season))} • ${esc(ep.title || ep.id || "Epizód")}
-              </div>
-              ${legal.noteHu ? `<div class="small" style="margin-top:6px;opacity:.9">${esc(legal.noteHu)}</div>` : ""}
-            </div>
-
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <a class="btn" href="#/ani/${esc(anilistId)}">Vissza az adatlaphoz</a>
-              ${getPremium() ? "" : `<a class="btn" href="#/account">Premium</a>`}
-            </div>
-          </div>
-
-          <div style="margin-top:14px">
-            ${playerHtml}
-          </div>
-
-          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between">
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <a class="btn" ${prevKey ? `href="#/watch/ani/${esc(anilistId)}/${esc(prevKey)}"` : "aria-disabled=\"true\" style=\"opacity:.6;pointer-events:none\""}>Előző</a>
-              <a class="btn" ${nextKey ? `href="#/watch/ani/${esc(anilistId)}/${esc(nextKey)}"` : "aria-disabled=\"true\" style=\"opacity:.6;pointer-events:none\""}>Következő</a>
-            </div>
-            <div class="small">Kulcs: <span class="kbd">${esc(epKey)}</span></div>
+          <div style="font-weight:900">Lejátszó (demo)</div>
+          <div class="p">Itt jelenjen meg a jogtiszta videó (YouTube embed / saját MP4) a data.js alapján.</div>
+          <div class="small" style="margin-top:8px">Epizód kulcs: <span class="kbd">${esc(epKey)}</span></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+            <a class="btn" href="#/ani/${esc(anilistId)}">Vissza</a>
+            ${getPremium() ? "" : `<a class="btn" href="#/account">Premium</a>`}
           </div>
         </div>
       `);
@@ -1169,7 +911,13 @@
     setNavActive();
     hideOverlay();
 
-    const { path, query } = getHashParts();
+    const { path } = route();
+
+    // query param a /discover-hez (műfaj)
+    if (path.startsWith("/discover") && location.hash.includes("?g=")) {
+      const g = decodeURIComponent((location.hash.split("?g=")[1] || "").split("&")[0] || "");
+      return pageDiscover(g || "");
+    }
 
     if (path === "/" || path === "") {
       const auth = getAuth();
@@ -1181,23 +929,10 @@
     if (path === "/login") return pageLogin();
     if (path === "/profiles") return pageProfiles();
     if (path === "/browse") return pageBrowse();
-
-    if (path.startsWith("/discover")) {
-      const g = query.g || "";
-      return pageDiscover(g);
-    }
-
+    if (path === "/discover") return pageDiscover("");
     if (path === "/genres") return pageGenres();
     if (path === "/my-list") return pageMyList();
     if (path === "/account") return pageAccount();
-
-    const mYear = path.match(/^\/year\/(\d{4})$/);
-    if (mYear) {
-      const y = mYear[1];
-      const s = query.s || "";
-      const p = query.p || "1";
-      return pageYear(y, s, p);
-    }
 
     const mAni = path.match(/^\/ani\/(\d+)$/);
     if (mAni) return pageAniDetails(mAni[1]);
