@@ -75,6 +75,9 @@
   };
   const formatHu = (f) => FORMAT_HU[f] || (f || "—");
 
+
+  const SEASON_HU = { WINTER:"Tél", SPRING:"Tavasz", SUMMER:"Nyár", FALL:"Ősz" };
+  const seasonHu = (s) => SEASON_HU[s] || (s || "—");
   const mediaTitle = (m) => m?.title?.english || m?.title?.romaji || m?.title?.native || ("AniList #" + m?.id);
   const mediaPoster = (m) => m?.coverImage?.extraLarge || m?.coverImage?.large || "";
   const formatDate = (d) => {
