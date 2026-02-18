@@ -1,0 +1,174 @@
+:root{
+  --bg:#09090b;
+  --panel: rgba(255,255,255,.06);
+  --panel2: rgba(255,255,255,.09);
+  --border: rgba(255,255,255,.12);
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.65);
+  --muted2: rgba(255,255,255,.45);
+  --shadow: 0 10px 30px rgba(0,0,0,.35);
+  --r: 16px;
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background: var(--bg);
+  color: var(--text);
+}
+
+a{ color: inherit; text-decoration:none; }
+a:hover{ text-decoration:underline; }
+
+.container{
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.nav{
+  position: sticky;
+  top:0;
+  z-index: 20;
+  backdrop-filter: blur(12px);
+  background: rgba(9,9,11,.75);
+  border-bottom: 1px solid var(--border);
+}
+.navRow{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  height:56px;
+}
+.brand{
+  display:flex; align-items:center; gap:10px;
+  font-weight: 900;
+  letter-spacing: .2px;
+}
+.badgeA{
+  width:28px;height:28px;border-radius: 10px;
+  background:#fff;color:#09090b;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-weight:900;
+}
+.navLinks{ display:none; gap:8px; }
+@media(min-width:860px){ .navLinks{ display:flex; } }
+.navLink{
+  padding:8px 12px; border-radius: 12px;
+  color: var(--muted);
+}
+.navLink.active{ background: rgba(255,255,255,.10); color: var(--text); }
+.navLink:hover{ background: rgba(255,255,255,.06); color: var(--text); text-decoration:none; }
+
+.right{ margin-left:auto; display:flex; align-items:center; gap:10px; flex-wrap: wrap; }
+
+.btn{
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-weight: 800;
+  cursor:pointer;
+}
+.btn:hover{ background: rgba(255,255,255,.10); }
+.btn.primary{
+  background:#fff; color:#09090b; border-color:#fff;
+}
+.btn.primary:hover{ background: rgba(255,255,255,.85); }
+.btn:disabled{ opacity:.6; cursor:not-allowed; }
+
+.card{
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.grid{
+  display:grid;
+  gap:12px;
+}
+.grid.cols2{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+@media(min-width:700px){ .grid.cols3{ grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media(min-width:900px){ .grid.cols5{ grid-template-columns: repeat(5, minmax(0,1fr)); } }
+
+.tile{
+  border-radius: 18px;
+  overflow:hidden;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.tilePoster{
+  aspect-ratio: 2/3;
+  background: linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+}
+.tileInfo{
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(0,0,0,.0), rgba(0,0,0,.45));
+}
+.h1{ font-size: 28px; font-weight: 950; margin: 0; }
+.h2{ font-size: 18px; font-weight: 900; margin: 0; }
+.p{ color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.small{ color: var(--muted2); font-size: 12px; }
+
+.hero{
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,.10), transparent 55%),
+    radial-gradient(circle at 30% 10%, rgba(255,255,255,.08), transparent 50%);
+}
+.heroInner{ padding: 36px 0; }
+.pills{ display:flex; flex-wrap:wrap; gap:8px; margin-top: 12px; }
+.pill{
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.06);
+  color: var(--muted);
+}
+
+.input, .select{
+  width: 100%;
+  padding: 12px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.92);
+  outline: none;
+}
+
+.modalBack{
+  position: fixed; inset:0;
+  background: rgba(0,0,0,.80);
+  display:flex; align-items:center; justify-content:center;
+  padding: 16px;
+  z-index: 50;
+}
+.modal{
+  width: min(720px, 100%);
+  border-radius: 24px;
+  overflow:hidden;
+  border: 1px solid var(--border);
+  background: rgba(9,9,11,.98);
+  box-shadow: var(--shadow);
+}
+.modalHead{
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.modalBody{ padding: 16px; }
+
+.adBox{
+  aspect-ratio: 16/9;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+  display:flex; align-items:center; justify-content:center;
+  color: var(--muted);
+  text-align:center;
+  padding: 16px;
+}
