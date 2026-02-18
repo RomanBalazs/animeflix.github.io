@@ -1,41 +1,13 @@
 /* global window */
-window.ANIMEFLIX_DATA = {
-  /**
-   * Jogtiszta streaming tartalom, amit TE csatolsz.
-   * Kulcs: AniList Media ID (string).
-   *
-   * Példa:
-   * legalContent: {
-   *   "21": {
-   *     noteHu: "Jogtiszta forrás: saját licenc / hivatalos embed.",
-   *     seasons: [{
-   *       season: 1,
-   *       episodes: [{
-   *         id: "e1",
-   *         titleHu: "1. rész",
-   *         durationMin: 24,
-   *         sources: [{ type:"mp4", url:"https://example.com/video.mp4" }]
-   *       }]
-   *     }]
-   *   }
-   * }
-   */
-  legalContent: {
-    // ide töltöd fel
-  }
+/**
+ * FONTOS:
+ * - Ez a fájl opcionális: a katalógus (AniList) nélküle is működik.
+ * - Itt csak a TE jogtiszta videóforrásaidat add meg.
+ */
+window.ANIMEFLIX_DATA = window.ANIMEFLIX_DATA || {
+  legalContent: {}
 };
-legalContent: {
-  "20": {
-    noteHu: "Jogtiszta forrás: saját licenc / hivatalos embed.",
-    seasons: [{
-      season: 1,
-      episodes: [{
-        id: "e1",
-        titleHu: "1. rész",
-        durationMin: 24,
-        sources: [{ type:"mp4", url:"https://example.com/video.mp4" }]
-      }]
-    }]
-  }
-}
 
+// Biztonság kedvéért: legyen "valódi" globál változó is
+// (ha valahol a névfeloldás szigorúbb)
+var ANIMEFLIX_DATA = window.ANIMEFLIX_DATA;
