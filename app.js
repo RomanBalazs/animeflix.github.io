@@ -883,17 +883,18 @@
                 <div class="p" style="margin-top:10px;white-space:pre-wrap">${esc(descEn || "—")}</div>
               </details>
             </div>
+                        <div class="card" style="padding:16px">
+              <div style="font-weight:900">Epizódok (jogtiszta forrás)</div>
+              ${buildEpisodesHtml(anilistId)}
+              ${legal ? `<div class="small" style="margin-top:10px;opacity:.85">${esc(legal.noteHu || "")}</div>` : ""}
+            </div>
 
             <div class="card" style="padding:16px">
               <div style="font-weight:900">Szereplők + szinkronhangok (JP)</div>
               ${renderCast(m)}
             </div>
 
-            <div class="card" style="padding:16px">
-              <div style="font-weight:900">Epizódok (jogtiszta forrás)</div>
-              ${buildEpisodesHtml(anilistId)}
-              ${legal ? `<div class="small" style="margin-top:10px;opacity:.85">${esc(legal.noteHu || "")}</div>` : ""}
-            </div>
+            
           </div>
         </div>`;
 
