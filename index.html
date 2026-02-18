@@ -8,30 +8,27 @@
 </head>
 <body>
   <header class="nav">
-    <div class="container">
-      <div class="navRow">
-        <a class="brand" href="#/browse" aria-label="AnimeFlix home">
-          <span class="badgeA">A</span> AnimeFlix
-        </a>
+    <div class="container navRow">
+      <a class="brand" href="#/browse" aria-label="AnimeFlix home">
+        <span class="badge">A</span> AnimeFlix
+      </a>
 
-        <nav class="navLinks" aria-label="Fő navigáció">
-          <a class="navLink" data-route="/browse" href="#/browse">Kezdőlap</a>
-          <a class="navLink" data-route="/search" href="#/search">Felfedezés</a>
-          <a class="navLink" data-route="/my-list" href="#/my-list">Saját listám</a>
-        </nav>
+      <nav class="navLinks" aria-label="Fő navigáció">
+        <a class="navLink" data-route="/browse" href="#/browse">Kezdőlap</a>
+        <a class="navLink" data-route="/discover" href="#/discover">Keresés</a>
+        <a class="navLink" data-route="/my-list" href="#/my-list">Saját listám</a>
+        <a class="navLink" data-route="/account" href="#/account">Fiók</a>
+      </nav>
 
-        <div class="right">
-          <a class="btn" href="#/search">Keresés</a>
-          <a class="btn" id="planBtn" href="#/account">Free</a>
-          <a class="btn" href="#/profiles" id="profileBtn">Profil</a>
-          <button class="btn" id="logoutBtn" type="button">Kilépés</button>
-        </div>
+      <div class="right">
+        <a class="btn" id="planBtn" href="#/account">Free</a>
+        <a class="btn" href="#/profiles" id="profileBtn">Profil</a>
+        <button class="btn" id="logoutBtn" type="button">Kilépés</button>
       </div>
     </div>
   </header>
 
   <main id="app"></main>
-
   <div id="overlayRoot"></div>
 
   <script src="./data.js"></script>
