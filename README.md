@@ -1,21 +1,16 @@
-# AnimeFlix (STATIC) – GitHub Pages-re, build nélkül
+# AnimeFlix (statikus, build nélkül)
 
-Ez a verzió **nem** igényel npm-et, Vite-ot vagy buildet.
-Csak feltöltöd a fájlokat GitHubra, és GitHub Pages kiszolgálja.
+## Monetizáció 
+- AniList katalógus: mindenki számára elérhető, reklám nélkül.
+- Reklám csak epizód indításkor (felugró interstitial).
+- Interstitial után 90 percig nincs új reklám.
+- 90 perc letelte után a következő epizód indításakor ismét felugrik.
+- Premium (demo) esetén nincs epizód előtti reklám.
 
-## Telepítés (GitHub Pages)
-1) Töltsd fel a fájlokat a repód gyökerébe (root).
-2) GitHub → Settings → Pages
-3) Build and deployment → Source: **Deploy from a branch**
-4) Branch: **main**, Folder: **/(root)** → Save
-5) 1-2 perc és él az oldal.
+## Jogtisztaság
+Csak jogtiszta videóforrást csatolj.
 
-## Funkciók (demo)
-- Free: banner hirdetés + epizód indítás előtt 10 mp interstitial (skip)
-- Premium: reklámmentes (banner+interstitial eltűnik)
-- Login (lokális), profilválasztás
-- Keresés + szűrők, Saját lista
-- Megnézett progress mentés (demo)
-
-## Megjegyzés
-Ez **csak UI/UX demo** (nincs valós streaming, DRM, licenc, CDN).
+## Futatás helyben
+Ne file://-ból nyisd meg, hanem lokál szerverrel:
+- VS Code: Live Server
+- vagy bármilyen statikus szerver
