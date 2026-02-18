@@ -1,134 +1,172 @@
-/* global window, document, ANIMEFLIX_DATA */
+/* global window, document */
 (function () {
   const $app = document.getElementById("app");
-  const $overlay = document.getElementById("overlayRoot");
+  const $overlayRoot = document.getElementById("overlayRoot");
 
-  // AniList GraphQL
+  // Fix: akkor se dőljön el, ha a data.js nem tölt be
+  const DATA = (window.ANIMEFLIX_DATA && typeof window.ANIMEFLIX_DATA === "object")
+    ? window.ANIMEFLIX_DATA
+    : { legalContent: {} };
+
   const ANILIST_ENDPOINT = "https://graphql.anilist.co";
 
-  // ====== REKLÁM LOGIKA (kérésed szerint) ======
-  // - katalógus: NINCS reklám
-  // - epizód indításkor: popup reklám
-  // - popup után 90 percig nem jön újabb
+  // Epizód előtti reklám logika
   const AD_SKIP_SECONDS = 10;
   const AD_COOLDOWN_MS = 90 * 60 * 1000;
 
-  // LocalStorage kulcsok
-  const K = {
-    auth: "af:auth",
-    profiles: "af:profiles",
-    activeProfile: "af:activeProfile",
-    premium: "af:premium",
-    watchlist: "af:watchlist",
-    cache: "af:cache",
-    lastAdAtPrefix: "af:lastAdAt:" // + profileId
+  const k = {
+    auth: "animeflix:auth",
+    profiles: "animeflix:profiles",
+    activeProfile: "animeflix:activeProfileId",
+    premium: "animeflix:premium",
+    watchlist: "animeflix:watchlist:v2",
+    cache: "animeflix:cache:v3",
+    lastEpisodeAdAtPrefix: "animeflix:lastEpisodeAdAt:"
   };
 
-  // ---------- utils ----------
-  const esc = (s) =>
-    String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-  const stripHtml = (html) =>
-    String(html ?? "")
-      .replace(/<[^>]*>/g, "")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&amp;/g, "&")
-      .replace(/&quot;/g, '"')
-      .replace(/&#039;/g, "'");
-
-  const pageWrap = (content) => `<div class="container" style="padding:18px 16px 26px">${content}</div>`;
-
-  const nav = (to) => (location.hash = "#" + to);
-
-  const route = () => {
-    const raw = (location.hash || "#/").slice(1);
-    const [path] = raw.split("?");
-    return { path: path || "/" };
-  };
-
-  // ---------- auth / profile (demo) ----------
-  const getAuth = () => {
-    const raw = localStorage.getItem(K.auth);
+  // ---------------- storage ----------------
+  function getAuth() {
+    const raw = localStorage.getItem(k.auth);
     return raw ? JSON.parse(raw) : null;
-  };
-  const setAuth = (email) => localStorage.setItem(K.auth, JSON.stringify({ email: email || "demo@local", t: Date.now() }));
-  const clearAuth = () => {
-    localStorage.removeItem(K.auth);
-    localStorage.removeItem(K.activeProfile);
-  };
+  }
+  function setAuth(email) {
+    localStorage.setItem(k.auth, JSON.stringify({ email: email || "demo@animeflix.local", loggedInAt: Date.now() }));
+  }
+  function clearAuth() {
+    localStorage.removeItem(k.auth);
+    localStorage.removeItem(k.activeProfile);
+  }
 
-  const getPremium = () => localStorage.getItem(K.premium) === "1";
-  const setPremium = (v) => localStorage.setItem(K.premium, v ? "1" : "0");
+  function getPremium() { return localStorage.getItem(k.premium) === "1"; }
+  function setPremium(v) { localStorage.setItem(k.premium, v ? "1" : "0"); }
 
-  const getProfiles = () => {
-    const raw = localStorage.getItem(K.profiles);
+  function getProfiles() {
+    const raw = localStorage.getItem(k.profiles);
     if (raw) return JSON.parse(raw);
     const defaults = [
       { id: "p1", name: "Balázs", avatar: "🦊" },
       { id: "p2", name: "Vendég", avatar: "🐺" }
     ];
-    localStorage.setItem(K.profiles, JSON.stringify(defaults));
+    localStorage.setItem(k.profiles, JSON.stringify(defaults));
     return defaults;
-  };
+  }
+  function setProfiles(p) { localStorage.setItem(k.profiles, JSON.stringify(p)); }
+  function getActiveProfileId() { return localStorage.getItem(k.activeProfile); }
+  function setActiveProfileId(id) { localStorage.setItem(k.activeProfile, id); }
 
-  const getActiveProfileId = () => localStorage.getItem(K.activeProfile);
-  const setActiveProfileId = (id) => localStorage.setItem(K.activeProfile, id);
+  function getWatchlist() {
+    const raw = localStorage.getItem(k.watchlist);
+    return raw ? JSON.parse(raw) : [];
+  }
+  function toggleWatchlist(key) {
+    const set = new Set(getWatchlist());
+    if (set.has(key)) set.delete(key); else set.add(key);
+    localStorage.setItem(k.watchlist, JSON.stringify(Array.from(set)));
+  }
 
-  const requireAuth = () => {
-    if (!getAuth()) { nav("/login"); return false; }
-    return true;
-  };
-  const requireProfile = () => {
+  // -------- per-profile epizód reklám cooldown --------
+  function getLastEpisodeAdAt() {
+    const pid = getActiveProfileId() || "anon";
+    const raw = localStorage.getItem(k.lastEpisodeAdAtPrefix + pid);
+    const v = Number(raw || "0");
+    return Number.isFinite(v) ? v : 0;
+  }
+  function setLastEpisodeAdAt(ts) {
+    const pid = getActiveProfileId() || "anon";
+    localStorage.setItem(k.lastEpisodeAdAtPrefix + pid, String(ts || Date.now()));
+  }
+  function shouldShowEpisodeAdNow() {
+    if (getPremium()) return false;
+    const last = getLastEpisodeAdAt();
+    return !last || (Date.now() - last) >= AD_COOLDOWN_MS;
+  }
+
+  // ---------------- cache ----------------
+  function getCache() {
+    const raw = localStorage.getItem(k.cache);
+    return raw ? JSON.parse(raw) : {};
+  }
+  function setCache(c) { localStorage.setItem(k.cache, JSON.stringify(c)); }
+  function cacheGet(key) {
+    const c = getCache();
+    const e = c[key];
+    if (!e) return null;
+    if (Date.now() - e.t > 6 * 60 * 60 * 1000) return null;
+    return e.v;
+  }
+  function cacheSet(key, value) {
+    const c = getCache();
+    c[key] = { t: Date.now(), v: value };
+    setCache(c);
+  }
+
+  // ---------------- helpers ----------------
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  }
+  function stripHtml(html) {
+    const s = String(html ?? "");
+    return s.replace(/<[^>]*>/g, "")
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#039;/g, "'");
+  }
+  function pageWrap(content) {
+    return `<div class="container" style="padding-top:18px;padding-bottom:26px">${content}</div>`;
+  }
+  function tilePosterStyle(imgUrl) { return imgUrl ? `style="background-image:url('${esc(imgUrl)}')"` : ""; }
+  function nav(to) { location.hash = "#" + to; }
+  function route() {
+    const raw = (location.hash || "#/").slice(1);
+    const [path] = raw.split("?");
+    return { path: path || "/" };
+  }
+  function requireAuth() { if (!getAuth()) { nav("/login"); return false; } return true; }
+  function requireProfile() {
     if (!requireAuth()) return false;
     if (!getActiveProfileId()) { nav("/profiles"); return false; }
     return true;
-  };
+  }
 
-  // ---------- watchlist ----------
-  const getWatchlist = () => {
-    const raw = localStorage.getItem(K.watchlist);
-    return raw ? JSON.parse(raw) : [];
-  };
-  const toggleWatchlist = (key) => {
-    const set = new Set(getWatchlist());
-    if (set.has(key)) set.delete(key); else set.add(key);
-    localStorage.setItem(K.watchlist, JSON.stringify([...set]));
-  };
+  function setNavActive() {
+    const { path } = route();
+    document.querySelectorAll(".navLink[data-route]").forEach(a => {
+      const p = a.getAttribute("data-route");
+      if (p && path.startsWith(p)) a.classList.add("active");
+      else a.classList.remove("active");
+    });
 
-  // ---------- AniList cache ----------
-  const cacheGet = (key) => {
-    const raw = localStorage.getItem(K.cache);
-    const c = raw ? JSON.parse(raw) : {};
-    const e = c[key];
-    if (!e) return null;
-    if (Date.now() - e.t > 6 * 60 * 60 * 1000) return null; // 6h TTL
-    return e.v;
-  };
-  const cacheSet = (key, v) => {
-    const raw = localStorage.getItem(K.cache);
-    const c = raw ? JSON.parse(raw) : {};
-    c[key] = { t: Date.now(), v };
-    localStorage.setItem(K.cache, JSON.stringify(c));
-  };
+    const planBtn = document.getElementById("planBtn");
+    if (planBtn) {
+      planBtn.textContent = getPremium() ? "Premium" : "Free";
+      planBtn.classList.toggle("primary", getPremium());
+    }
 
-  const hashKey = (s) => {
+    const profileBtn = document.getElementById("profileBtn");
+    if (profileBtn) profileBtn.textContent = getActiveProfileId() ? "Profil" : "Válassz profilt";
+
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) logoutBtn.style.display = getAuth() ? "inline-flex" : "none";
+  }
+
+  // ---------------- AniList ----------------
+  function hashKey(s) {
     let h = 2166136261;
     for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
     return (h >>> 0).toString(16);
-  };
-
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  }
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   async function anilistQuery(query, variables) {
     const payload = JSON.stringify({ query, variables: variables || {} });
-    const key = "anilist:" + hashKey(payload);
-    const cached = cacheGet(key);
+    const ckey = "anilist:" + hashKey(payload);
+    const cached = cacheGet(ckey);
     if (cached) return cached;
 
-    let attempt = 0, wait = 650;
+    let attempt = 0;
+    let wait = 650;
+
     while (attempt < 4) {
-      attempt++;
+      attempt += 1;
       const res = await fetch(ANILIST_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
@@ -137,29 +175,36 @@
 
       if (res.ok) {
         const js = await res.json();
-        cacheSet(key, js);
+        cacheSet(ckey, js);
         return js;
       }
+
       if (res.status === 429) {
         const ra = Number(res.headers.get("Retry-After") || "60");
         await sleep(Math.max(1000, ra * 1000));
         continue;
       }
-      if (res.status >= 500) { await sleep(wait); wait *= 2; continue; }
+
+      if (res.status >= 500 && res.status <= 599) {
+        await sleep(wait);
+        wait *= 2;
+        continue;
+      }
+
       throw new Error("AniList HTTP " + res.status);
     }
+
     throw new Error("AniList: túl sok kérés / hálózati hiba.");
   }
 
   const Q_TRENDING = `
     query ($page:Int,$perPage:Int) {
       Page(page:$page, perPage:$perPage) {
-        pageInfo { currentPage lastPage }
         media(type: ANIME, sort: TRENDING_DESC, isAdult:false) {
           id siteUrl
           title { romaji english native }
           coverImage { extraLarge large }
-          seasonYear format episodes averageScore genres
+          seasonYear averageScore genres
           description(asHtml:false)
         }
       }
@@ -168,12 +213,11 @@
   const Q_POPULAR = `
     query ($page:Int,$perPage:Int) {
       Page(page:$page, perPage:$perPage) {
-        pageInfo { currentPage lastPage }
         media(type: ANIME, sort: POPULARITY_DESC, isAdult:false) {
           id siteUrl
           title { romaji english native }
           coverImage { extraLarge large }
-          seasonYear format episodes averageScore genres
+          seasonYear averageScore genres
           description(asHtml:false)
         }
       }
@@ -187,39 +231,31 @@
           id siteUrl
           title { romaji english native }
           coverImage { extraLarge large }
-          seasonYear format episodes averageScore genres
+          seasonYear averageScore genres
           description(asHtml:false)
         }
       }
     }
   `;
-  const Q_BY_ID = `
-    query ($id:Int) {
-      Media(id:$id, type:ANIME) {
-        id siteUrl
-        title { romaji english native }
-        coverImage { extraLarge large }
-        seasonYear format episodes averageScore genres
-        description(asHtml:false)
-      }
-    }
-  `;
 
-  const mediaTitle = (m) => m?.title?.english || m?.title?.romaji || m?.title?.native || ("AniList #" + m?.id);
-  const mediaPoster = (m) => m?.coverImage?.extraLarge || m?.coverImage?.large || "";
+  function mediaTitle(m) {
+    return m?.title?.english || m?.title?.romaji || m?.title?.native || ("AniList #" + m?.id);
+  }
+  function mediaPoster(m) { return m?.coverImage?.extraLarge || m?.coverImage?.large || ""; }
+  function mediaToTile(m) {
+    return { id: String(m.id), title: mediaTitle(m), poster: mediaPoster(m), year: m.seasonYear || "" };
+  }
 
-  const tilePosterStyle = (url) => url ? `style="background-image:url('${esc(url)}')"` : "";
-
-  function grid(items) {
+  function titleGrid(items) {
     return `
       <div class="grid cols2 cols3 cols5">
-        ${items.map(m => `
-          <a href="#/ani/${esc(m.id)}" style="text-decoration:none">
+        ${items.map(it => `
+          <a href="#/ani/${esc(it.id)}" style="text-decoration:none">
             <div class="tile">
-              <div class="tilePoster" ${tilePosterStyle(m.poster)}></div>
+              <div class="tilePoster" ${tilePosterStyle(it.poster)}></div>
               <div class="tileInfo">
-                <div style="font-weight:900">${esc(m.title)}</div>
-                <div class="small" style="margin-top:4px">${esc(m.year || "")}</div>
+                <div style="font-weight:900">${esc(it.title)}</div>
+                <div class="small" style="margin-top:4px">${esc(it.year || "")}</div>
               </div>
             </div>
           </a>
@@ -228,36 +264,20 @@
     `;
   }
 
-  // ====== REKLÁM: per profil cooldown ======
-  function getLastAdAt() {
-    const pid = getActiveProfileId() || "anon";
-    const raw = localStorage.getItem(K.lastAdAtPrefix + pid);
-    const v = Number(raw || "0");
-    return Number.isFinite(v) ? v : 0;
-  }
-  function setLastAdAt(ts) {
-    const pid = getActiveProfileId() || "anon";
-    localStorage.setItem(K.lastAdAtPrefix + pid, String(ts || Date.now()));
-  }
-  function shouldShowAdNow() {
-    if (getPremium()) return false;
-    const last = getLastAdAt();
-    return !last || (Date.now() - last) >= AD_COOLDOWN_MS;
-  }
-
+  // ---------------- reklám overlay ----------------
   let adTimer = null;
-  function hideOverlay() { $overlay.innerHTML = ""; }
+  function hideOverlay() { $overlayRoot.innerHTML = ""; }
 
-  function showAd(onContinue) {
+  function showEpisodeAd(onContinue) {
     let left = AD_SKIP_SECONDS;
     clearInterval(adTimer);
 
-    $overlay.innerHTML = `
+    $overlayRoot.innerHTML = `
       <div class="modalBack">
         <div class="modal">
           <div class="modalHead">
             <div style="font-weight:900">Hirdetés</div>
-            <div class="p">Epizód indítása előtt. Utána 90 percig nem jelenik meg újra.</div>
+            <div class="p">Epizód indítása előtt. 90 percig nem jelenik meg újra.</div>
           </div>
           <div class="modalBody">
             <div class="adBox">
@@ -287,20 +307,19 @@
     $btn.addEventListener("click", () => {
       if (left > 0) return;
       hideOverlay();
-      setLastAdAt(Date.now());
+      setLastEpisodeAdAt(Date.now());
       onContinue();
     });
   }
 
   function gateEpisodePlayback(onContinue) {
-    // KATALÓGUS NINCS reklám -> csak lejátszó route hívja ezt
-    if (!shouldShowAdNow()) return onContinue();
-    showAd(onContinue);
+    if (!shouldShowEpisodeAdNow()) return onContinue();
+    showEpisodeAd(onContinue);
   }
 
-  // ---------- legal content helpers ----------
+  // ---------------- jogtiszta források ----------------
   function getLegal(anilistId) {
-    const lc = ANIMEFLIX_DATA?.legalContent || {};
+    const lc = (DATA && DATA.legalContent) ? DATA.legalContent : {};
     return lc[String(anilistId)] || null;
   }
   function firstEpisodeKey(lc) {
@@ -316,29 +335,7 @@
     return "";
   }
 
-  // ---------- UI: nav state ----------
-  function setNavActive() {
-    const { path } = route();
-    document.querySelectorAll(".navLink[data-route]").forEach(a => {
-      const p = a.getAttribute("data-route");
-      if (p && path.startsWith(p)) a.classList.add("active");
-      else a.classList.remove("active");
-    });
-
-    const planBtn = document.getElementById("planBtn");
-    if (planBtn) {
-      planBtn.textContent = getPremium() ? "Premium" : "Free";
-      planBtn.classList.toggle("primary", getPremium());
-    }
-
-    const profileBtn = document.getElementById("profileBtn");
-    if (profileBtn) profileBtn.textContent = getActiveProfileId() ? "Profil" : "Válassz profilt";
-
-    const logoutBtn = document.getElementById("logoutBtn");
-    if (logoutBtn) logoutBtn.style.display = getAuth() ? "inline-flex" : "none";
-  }
-
-  // ---------- pages ----------
+  // ---------------- oldalak ----------------
   function pageLogin() {
     document.querySelector("header.nav").style.display = "none";
     $app.innerHTML = pageWrap(`
@@ -412,7 +409,7 @@
       const avatar = document.getElementById("newAvatar").value || "😺";
       const id = "p" + Math.random().toString(16).slice(2,8);
       const next = profiles.concat([{ id, name, avatar }]);
-      localStorage.setItem(K.profiles, JSON.stringify(next));
+      setProfiles(next);
       nav("/profiles");
     };
   }
@@ -421,17 +418,28 @@
     if (!requireProfile()) return;
     document.querySelector("header.nav").style.display = "block";
 
+    const warn = (!window.ANIMEFLIX_DATA)
+      ? `<div class="card" style="padding:16px;margin-top:12px">
+           <div style="font-weight:900">Figyelem</div>
+           <div class="p">A <span class="kbd">data.js</span> nem töltődött be, ezért a jogtiszta epizódok listája üres. A katalógus ettől még működik.</div>
+         </div>`
+      : "";
+
     $app.innerHTML =
       `<div class="hero"><div class="container heroInner">
         <div class="small" style="font-weight:900">Katalógus (AniList) – reklámmentes</div>
         <h1 class="h1" style="margin-top:8px">AnimeFlix</h1>
-        <div class="p">Reklám csak epizód indításkor, 90 perc cooldown.</div>
+        <div class="p">Reklám csak epizód indításkor, 90 perc cooldown. Premiumban nincs.</div>
         <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
           <a class="btn primary" href="#/discover">Keresés</a>
           <a class="btn" href="#/my-list">Saját listám</a>
+          <a class="btn" href="#/account">Fiók</a>
         </div>
       </div></div>` +
-      pageWrap(`<div class="card" style="padding:16px"><div style="font-weight:900">Betöltés…</div></div>`);
+      `<div class="container" style="padding:16px 16px 26px">
+        ${warn}
+        <div class="card" style="padding:16px;margin-top:12px"><div style="font-weight:900">Betöltés…</div></div>
+      </div>`;
 
     try {
       const [tr, pop] = await Promise.all([
@@ -439,37 +447,34 @@
         anilistQuery(Q_POPULAR, { page: 1, perPage: 20 })
       ]);
 
-      const trending = (tr?.data?.Page?.media || []).map(m => ({
-        id: String(m.id), title: mediaTitle(m), poster: mediaPoster(m), year: m.seasonYear || ""
-      }));
-      const popular = (pop?.data?.Page?.media || []).map(m => ({
-        id: String(m.id), title: mediaTitle(m), poster: mediaPoster(m), year: m.seasonYear || ""
-      }));
+      const trending = (tr?.data?.Page?.media || []).map(mediaToTile);
+      const popular = (pop?.data?.Page?.media || []).map(mediaToTile);
 
       $app.innerHTML =
         `<div class="hero"><div class="container heroInner">
           <div class="small" style="font-weight:900">Katalógus (AniList) – reklámmentes</div>
           <h1 class="h1" style="margin-top:8px">AnimeFlix</h1>
-          <div class="p">Reklám csak epizód indításkor, 90 perc cooldown.</div>
+          <div class="p">Reklám csak epizód indításkor, 90 perc cooldown. Premiumban nincs.</div>
         </div></div>` +
         `<div class="container" style="padding:16px 16px 26px">
+          ${warn}
           <section style="margin-top:6px">
             <div class="h2">Trending</div>
             <div class="p">Böngészés reklám nélkül.</div>
-            <div style="margin-top:10px">${grid(trending)}</div>
+            <div style="margin-top:10px">${titleGrid(trending)}</div>
           </section>
 
           <section style="margin-top:16px">
             <div class="h2">Népszerű</div>
             <div class="p">Top popular címek.</div>
-            <div style="margin-top:10px">${grid(popular)}</div>
+            <div style="margin-top:10px">${titleGrid(popular)}</div>
           </section>
         </div>`;
     } catch (e) {
       $app.innerHTML = pageWrap(`
         <div class="card" style="padding:16px">
           <div style="font-weight:900">Hiba a katalógus betöltésekor</div>
-          <div class="p">Rate limit / hálózati gond lehetséges.</div>
+          <div class="p">Rate limit / hálózati/CORS gond lehetséges.</div>
           <div class="small" style="margin-top:8px">${esc(e.message || e)}</div>
         </div>
       `);
@@ -482,7 +487,7 @@
 
     $app.innerHTML = pageWrap(`
       <div class="h1">Keresés</div>
-      <div class="p">Katalógus nézetben nincs reklám. Reklám csak a lejátszás előtt.</div>
+      <div class="p">A katalógus nézet reklámmentes. Reklám csak a lejátszás előtt.</div>
 
       <div class="card" style="padding:16px;margin-top:12px">
         <div class="row">
@@ -514,13 +519,11 @@
         const search = ($q.value || "").trim() || null;
         const js = await anilistQuery(Q_SEARCH, { page: state.page, perPage: state.perPage, search });
         const info = js?.data?.Page?.pageInfo;
-        const items = (js?.data?.Page?.media || []).map(m => ({
-          id: String(m.id), title: mediaTitle(m), poster: mediaPoster(m), year: m.seasonYear || ""
-        }));
+        const items = (js?.data?.Page?.media || []).map(mediaToTile);
 
         state.lastPage = info?.lastPage || 1;
         $meta.textContent = `Találatok: ${items.length} • Oldal: ${state.page}/${state.lastPage}`;
-        $results.innerHTML = items.length ? grid(items) : `<div class="small">Nincs találat.</div>`;
+        $results.innerHTML = items.length ? titleGrid(items) : `<div class="small">Nincs találat.</div>`;
 
         $pager.innerHTML = `
           <div class="row" style="justify-content:space-between">
@@ -554,6 +557,17 @@
     `);
 
     try {
+      const Q_BY_ID = `
+        query ($id:Int) {
+          Media(id:$id, type:ANIME) {
+            id siteUrl
+            title { romaji english native }
+            coverImage { extraLarge large }
+            seasonYear averageScore genres
+            description(asHtml:false)
+          }
+        }
+      `;
       const js = await anilistQuery(Q_BY_ID, { id: Number(anilistId) });
       const m = js?.data?.Media;
       if (!m) throw new Error("Nincs adat.");
@@ -562,6 +576,7 @@
       const poster = mediaPoster(m);
       const year = m.seasonYear || "";
       const descEn = stripHtml(m.description || "");
+
       const inList = new Set(getWatchlist()).has("ani:" + anilistId);
 
       const legal = getLegal(anilistId);
@@ -569,7 +584,7 @@
 
       $app.innerHTML =
         `<div class="hero"><div class="container heroInner">
-          <div class="small" style="font-weight:900">AniList adatlap (reklámmentes)</div>
+          <div class="small" style="font-weight:900">AniList adatlap (katalógus reklámmentes)</div>
           <h1 class="h1" style="margin-top:8px">${esc(title)}</h1>
           <div class="p">${esc(year)} • Score: ${esc(m.averageScore ? (m.averageScore + "/100") : "—")}</div>
 
@@ -581,6 +596,7 @@
             }
             <button class="btn" id="wl">${inList ? "Listában" : "Listához"}</button>
             ${m.siteUrl ? `<a class="btn" target="_blank" rel="noreferrer" href="${esc(m.siteUrl)}">AniList</a>` : ""}
+            <a class="btn" href="#/discover">Vissza</a>
           </div>
 
           <div class="small" style="margin-top:12px;opacity:.9">
@@ -600,7 +616,7 @@
               <div style="font-weight:900">Leírás (EN – forrás)</div>
               <div class="p" style="margin-top:10px;white-space:pre-wrap">${esc(descEn || "—")}</div>
               <div class="small" style="margin-top:10px">
-                Magyar leírás: javasolt saját szöveg (jogtiszta). 
+                Magyar leírás: jogtisztán te írod / saját adatbázis.
               </div>
             </div>
 
@@ -671,7 +687,7 @@
     `);
 
     document.getElementById("clear").onclick = () => {
-      localStorage.setItem(K.watchlist, JSON.stringify([]));
+      localStorage.setItem(k.watchlist, JSON.stringify([]));
       nav("/my-list");
     };
   }
@@ -680,41 +696,32 @@
     if (!requireProfile()) return;
     document.querySelector("header.nav").style.display = "block";
 
-    const last = getLastAdAt();
+    const last = getLastEpisodeAdAt();
     const leftMs = Math.max(0, AD_COOLDOWN_MS - (Date.now() - last));
     const leftMin = Math.ceil(leftMs / 60000);
 
     $app.innerHTML = pageWrap(`
       <div class="h1">Fiók</div>
-      <div class="p">A katalógus reklámmentes. Reklám csak epizód indításakor van (90 perc cooldown).</div>
+      <div class="p">Katalógus: mindig reklámmentes. Reklám csak epizód indításkor (90 perc).</div>
 
-      <div class="grid" style="margin-top:12px">
-        <div class="card" style="padding:16px">
-          <div style="font-weight:900">Csomag: ${getPremium() ? "Premium" : "Free"}</div>
-          <div class="p" style="margin-top:6px">
-            Epizód reklám: ${getPremium() ? "kikapcsolva" : "bekapcsolva"}.
-            ${getPremium() ? "" : (leftMs > 0 ? ` Következő reklám kb. ${leftMin} perc múlva.` : " A következő epizódnál felugorhat.")}
-          </div>
-
-          <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn primary" id="togglePremium">${getPremium() ? "Premium kikapcsolása" : "Váltás Premiumra (demo)"}</button>
-            <button class="btn" id="resetAd">Reklám cooldown reset (teszt)</button>
-          </div>
-
-          <div class="small" style="margin-top:10px">Éles rendszerben: backend entitlement (ne csak localStorage).</div>
+      <div class="card" style="padding:16px;margin-top:12px">
+        <div style="font-weight:900">Csomag: ${getPremium() ? "Premium" : "Free"}</div>
+        <div class="p" style="margin-top:6px">
+          Epizód reklám: ${getPremium() ? "kikapcsolva" : "bekapcsolva"}.
+          ${getPremium() ? "" : (leftMs > 0 ? ` Következő reklám kb. ${leftMin} perc múlva.` : " A következő epizódnál felugorhat.")}
         </div>
 
-        <div class="card" style="padding:16px">
-          <div style="font-weight:900">Jogtisztaság</div>
-          <div class="p" style="margin-top:6px">
-            Csak jogtiszta videóforrásokat csatolj. A lejátszó a <span class="kbd">data.js</span> → <span class="kbd">legalContent</span> alapján működik.
-          </div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn primary" id="togglePremium">${getPremium() ? "Premium kikapcsolása" : "Váltás Premiumra (demo)"}</button>
+          <button class="btn" id="resetAd">Reklám cooldown reset (teszt)</button>
         </div>
+
+        <div class="small" style="margin-top:10px">Éles rendszerben: backend entitlement (ne csak localStorage).</div>
       </div>
     `);
 
     document.getElementById("togglePremium").onclick = () => { setPremium(!getPremium()); hideOverlay(); render(); };
-    document.getElementById("resetAd").onclick = () => { setLastAdAt(0); render(); };
+    document.getElementById("resetAd").onclick = () => { setLastEpisodeAdAt(0); render(); };
   }
 
   function pageWatchAni(anilistId, epKey) {
@@ -759,7 +766,7 @@
             : `<div class="adBox">Hibás YouTube URL</div>`;
         } else if (src.type === "mp4") {
           videoBlock =
-            `<video controls style="width:100%;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:#000">
+            `<video controls style="width:100%;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:#000" crossorigin="anonymous">
                <source src="${esc(src.url)}" type="video/mp4" />
              </video>`;
         } else if (src.type === "hls") {
@@ -769,7 +776,7 @@
         }
       }
 
-      const last = getLastAdAt();
+      const last = getLastEpisodeAdAt();
       const leftMs = Math.max(0, AD_COOLDOWN_MS - (Date.now() - last));
       const leftMin = Math.ceil(leftMs / 60000);
 
@@ -800,11 +807,10 @@
       `);
     };
 
-    // Itt történik a reklámkapu — KIZÁRÓLAG lejátszás előtt
     gateEpisodePlayback(doRender);
   }
 
-  // ---------- router ----------
+  // ---------------- router ----------------
   function render() {
     setNavActive();
     hideOverlay();
@@ -842,7 +848,6 @@
 
   window.addEventListener("hashchange", render);
 
-  // boot
   if (!location.hash) location.hash = "#/";
   render();
 })();
