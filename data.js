@@ -19,5 +19,14 @@ window.ANIMEFLIX_DATA = window.ANIMEFLIX_DATA || {
   }
 };
 
+"1535": {
+        noteHu: "YouTube jogtiszta forrás.",
+        seasons: [
+          { season: 1, episodes: [
+            { id: "ep1", title: "1. rész", type: "videa", src: "https://videa.hu/videok/film-animacio/death-note-01-zwAQAo6Vow5md7AT" }
+          ]}
+        ]
+      }
+
 // extra biztosíték: globál név is legyen (régi kódok miatt)
 var ANIMEFLIX_DATA = window.ANIMEFLIX_DATA;
