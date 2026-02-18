@@ -4,6 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>AnimeFlix</title>
+
+  <meta name="theme-color" content="#141414" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -15,6 +19,7 @@
 
       <nav class="navLinks" aria-label="Fő navigáció">
         <a class="navLink" data-route="/browse" href="#/browse">Kezdőlap</a>
+        <a class="navLink" data-route="/year/2025" href="#/year/2025">2025</a>
         <a class="navLink" data-route="/discover" href="#/discover">Keresés</a>
         <a class="navLink" data-route="/genres" href="#/genres">Műfajok</a>
         <a class="navLink" data-route="/my-list" href="#/my-list">Saját listám</a>
@@ -32,7 +37,6 @@
   <main id="app"></main>
   <div id="overlayRoot"></div>
 
-  <!-- FONTOS: ezek legyenek az app.js előtt -->
   <script src="./data.js"></script>
   <script src="./hu_db.js"></script>
   <script src="./app.js"></script>
