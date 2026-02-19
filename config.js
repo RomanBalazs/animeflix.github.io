@@ -10,9 +10,10 @@ window.ANIMEFLIX_CONFIG = {
   premiumPriceHuf: 3500,
   premiumPeriodHu: "hó",
   revolut: {
-    beneficiaryName: "Ide írd a kedvezményezett nevét",
-    revtag: "@ide_ird_a_revtagot",
-    iban: "",
+    beneficiaryName: "Balázs Román",
+    revtag: "@balzstl0y",
+    iban: "LT72 3250 0312 0803 0730",
+    swift: "REVOLT21",
     note: "Közleménybe a felhasználónevet írd."
   },
   contact: {
