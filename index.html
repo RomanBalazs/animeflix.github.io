@@ -24,10 +24,11 @@
         <a class="navLink" data-route="/genres" href="#/genres">Műfajok</a>
         <a class="navLink" data-route="/my-list" href="#/my-list">Saját listám</a>
         <a class="navLink" data-route="/account" href="#/account">Fiók</a>
+        <a class="navLink" data-route="/subscribe" href="#/subscribe">Előfizetés</a>
       </nav>
 
       <div class="right">
-        <a class="btn" id="planBtn" href="#/account">Free</a>
+        <a class="btn" id="planBtn" href="#/subscribe">Free</a>
         <a class="btn" href="#/profiles" id="profileBtn">Profil</a>
         <button class="btn" id="logoutBtn" type="button">Kilépés</button>
       </div>
@@ -36,7 +37,9 @@
 
   <main id="app"></main>
   <div id="overlayRoot"></div>
+  <div id="toastRoot" aria-live="polite" aria-atomic="true"></div>
 
+  <script src="./config.js"></script>
   <script src="./data.js"></script>
   <script src="./hu_db.js"></script>
   <script src="./app.js"></script>

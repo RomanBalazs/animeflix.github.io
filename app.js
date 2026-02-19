@@ -2,6 +2,7 @@
 (function () {
   const $app = document.getElementById("app");
   const $overlay = document.getElementById("overlayRoot");
+  const $toast = document.getElementById("toastRoot");
 
   const DATA = (window.ANIMEFLIX_DATA && typeof window.ANIMEFLIX_DATA === "object")
     ? window.ANIMEFLIX_DATA
@@ -10,6 +11,15 @@
   const HU_DB = (window.ANIMEFLIX_HU_DB && typeof window.ANIMEFLIX_HU_DB === "object")
     ? window.ANIMEFLIX_HU_DB
     : { ids: {}, titles: {} };
+
+const CONFIG = (window.ANIMEFLIX_CONFIG && typeof window.ANIMEFLIX_CONFIG === "object")
+  ? window.ANIMEFLIX_CONFIG
+  : {
+      premiumPriceHuf: 3500,
+      premiumPeriodHu: "hó",
+      revolut: { beneficiaryName: "", revtag: "", iban: "", note: "" },
+      contact: { email: "" }
+    };
 
   const ANILIST_ENDPOINT = "https://graphql.anilist.co";
 
@@ -25,6 +35,27 @@
     watchlist: "af:watchlist",
     cache: "af:cache:v2",
     lastAdAtPrefix: "af:lastAdAt:"
+  };
+
+  const toast = (msg) => {
+    if (!$toast) return;
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.textContent = String(msg || "");
+    $toast.innerHTML = "";
+    $toast.appendChild(el);
+    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 1600);
+  };
+
+  const copyText = async (text) => {
+    try {
+      await navigator.clipboard.writeText(String(text || ""));
+      toast("Másolva vágólapra");
+      return true;
+    } catch {
+      toast("Nem sikerült másolni");
+      return false;
+    }
   };
 
   const esc = (s) =>
@@ -151,6 +182,10 @@
 
   const getActiveProfileId = () => localStorage.getItem(K.activeProfile);
   const setActiveProfileId = (id) => localStorage.setItem(K.activeProfile, id);
+  const getActiveProfile = () => {
+    const id = getActiveProfileId();
+    return (getProfiles() || []).find(p => p.id === id) || null;
+  };
 
   const requireAuth = () => {
     if (!getAuth()) { nav("/login"); return false; }
@@ -426,6 +461,24 @@
     return s && e ? `s${s.season}:${e.id}` : null;
   }
 
+  let homeNavCleanup = null;
+  function setHomeNav(enabled) {
+    const header = document.querySelector("header.nav");
+    if (!header) return;
+    if (homeNavCleanup) { homeNavCleanup(); homeNavCleanup = null; }
+    header.classList.remove("navHome", "navSolid");
+    if (!enabled) return;
+
+    header.classList.add("navHome");
+    const onScroll = () => {
+      if (window.scrollY > 18) header.classList.add("navSolid");
+      else header.classList.remove("navSolid");
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    homeNavCleanup = () => window.removeEventListener("scroll", onScroll);
+    onScroll();
+  }
+
   function setNavActive() {
     const { path } = route();
     document.querySelectorAll(".navLink[data-route]").forEach(a => {
@@ -505,6 +558,7 @@
   async function pageBrowse() {
     if (!requireProfile()) return;
     document.querySelector("header.nav").style.display = "block";
+    setHomeNav(true);
 
     $app.innerHTML =
       `<div class="heroBanner"><div class="container heroInnerN">
@@ -594,16 +648,16 @@
             <div class="heroActions">
               ${
                 playableKey
-                ? `<a class="btn primary" href="#/watch/ani/${esc(featured.id)}/${esc(playableKey)}">Lejátszás</a>`
-                : `<a class="btn primary" href="#/ani/${esc(featured?.id || "")}">Részletek</a>`
+                ? `<a class="btn play" href="#/watch/ani/${esc(featured.id)}/${esc(playableKey)}">▶ Lejátszás</a>`
+                : `<a class="btn play" href="#/ani/${esc(featured?.id || "")}">▶ Részletek</a>`
               }
-              <a class="btn ghost" href="#/ani/${esc(featured?.id || "")}">További infó</a>
+              <a class="btn info" href="#/ani/${esc(featured?.id || "")}">ℹ További infó</a>
               <a class="btn" href="#/year/2025">2025</a>
               <a class="btn" href="#/discover">Keresés</a>
             </div>
           </div>
         </div>` +
-        `<div class="container" style="padding:16px 16px 26px">
+        `<div class="container homeRows" style="padding:16px 16px 26px">
           ${rail("Trending most", trending)}
           ${rail("Népszerű az AnimeFlixen", popular)}
           ${rail("Legjobbra értékelt", topRated)}
@@ -622,6 +676,7 @@
   async function pageDiscover(prefillGenre) {
     if (!requireProfile()) return;
     document.querySelector("header.nav").style.display = "block";
+    setHomeNav(true);
 
     $app.innerHTML = pageWrap(`
       <div class="h1">Keresés</div>
@@ -715,6 +770,7 @@
   async function pageGenres() {
     if (!requireProfile()) return;
     document.querySelector("header.nav").style.display = "block";
+    setHomeNav(true);
 
     $app.innerHTML = pageWrap(`
       <div class="h1">Műfajok</div>
@@ -808,6 +864,7 @@
   async function pageAniDetails(anilistId) {
     if (!requireProfile()) return;
     document.querySelector("header.nav").style.display = "block";
+    setHomeNav(true);
 
     $app.innerHTML = pageWrap(`
       <div class="card" style="padding:16px">
@@ -1094,19 +1151,113 @@
         </div>
 
         <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn primary" id="togglePremium">${getPremium() ? "Premium kikapcsolása" : "Váltás Premiumra (demo)"}</button>
+          <a class="btn primary" href="#/subscribe">Előfizetés / Premium</a>
           <button class="btn" id="resetAd">Reklám cooldown reset (teszt)</button>
         </div>
       </div>
     `);
 
-    document.getElementById("togglePremium").onclick = () => { setPremium(!getPremium()); hideOverlay(); render(); };
     document.getElementById("resetAd").onclick = () => { setLastAdAt(0); render(); };
   }
 
+
+  function pageSubscribe() {
+    if (!requireProfile()) return;
+    document.querySelector("header.nav").style.display = "block";
+    setHomeNav(false);
+
+    const prof = getActiveProfile();
+    const userName = (prof && prof.name) ? prof.name : "";
+
+    const price = Number((CONFIG && CONFIG.premiumPriceHuf) || 3500);
+    const period = String((CONFIG && CONFIG.premiumPeriodHu) || "hó");
+    const rev = (CONFIG && CONFIG.revolut) ? CONFIG.revolut : {};
+    const beneficiary = String(rev.beneficiaryName || "").trim();
+    const revtag = String(rev.revtag || "").trim();
+    const iban = String(rev.iban || "").trim();
+    const note = String(rev.note || "Közleménybe a felhasználóneved.").trim();
+    const contactEmail = String((CONFIG && CONFIG.contact && CONFIG.contact.email) || "").trim();
+
+    const payTarget = (revtag && revtag !== "@ide_ird_a_revtagot") ? revtag : (iban ? iban : "(nincs beállítva – config.js)");
+
+    const mailto = contactEmail
+      ? `mailto:${encodeURIComponent(contactEmail)}?subject=${encodeURIComponent("AnimeFlix Premium")}&body=${encodeURIComponent(`Felhasználónév: ${userName}
+Összeg: ${price} Ft
+Közlemény: ${userName}
+
+Csatolhatsz utalási igazolást.`)}`
+      : "";
+
+    $app.innerHTML = pageWrap(`
+      <div class="h1">Előfizetés</div>
+      <div class="p">Premium: reklámmentes epizódindítás + kényelmesebb lejátszás. A katalógus (AniList) továbbra is mindenkinek ingyenes.</div>
+
+      <div class="planGrid">
+        <div class="card planBox">
+          <div style="font-weight:950">Premium</div>
+          <div class="planPrice">${price.toLocaleString('hu-HU')} Ft <span style="font-size:16px;font-weight:900;color:rgba(255,255,255,.65)">/ ${esc(period)}</span></div>
+          <div class="planSub">Fizetés Revolut utalással. <b>Közlemény:</b> a felhasználóneved.</div>
+          <ul class="planList">
+            <li>Epizódindítás előtti reklámok: <b>kikapcsolva</b></li>
+            <li>90 perces reklám-cooldown: <b>nem releváns</b></li>
+            <li>Katalógus böngészés: továbbra is <b>ingyenes</b></li>
+          </ul>
+
+          <div class="card" style="padding:12px;margin-top:14px">
+            <div class="small">Cél (Revolut)</div>
+            <div class="codeBox" id="payTarget">${esc(payTarget)}</div>
+
+            ${beneficiary ? `<div class="small" style="margin-top:10px">Kedvezményezett</div><div class="codeBox">${esc(beneficiary)}</div>` : ""}
+
+            <div class="small" style="margin-top:10px">Közlemény (felhasználónév)</div>
+            <div class="codeBox" id="payNote">${esc(userName || "(válassz profilt)")}</div>
+
+            <div class="revolutLine">
+              <button class="btn" id="copyTarget">Cél másolása</button>
+              <button class="btn" id="copyNote">Közlemény másolása</button>
+              <button class="btn" id="copyAll">Minden másolása</button>
+            </div>
+            <div class="small" style="margin-top:10px">${esc(note)}</div>
+          </div>
+        </div>
+
+        <div class="card planBox">
+          <div style="font-weight:950">Aktiválás</div>
+          <div class="planSub">Ez az oldal statikus (GitHub Pages), ezért a fizetés automatikus ellenőrzése nem lehetséges. Premiumot kézzel kell visszaigazolni, vagy ezen az eszközön demóként bekapcsolhatod.</div>
+
+          <div class="card" style="padding:14px;margin-top:12px">
+            <div style="font-weight:900">1) Utalás</div>
+            <div class="small" style="margin-top:6px">Utalj <b>${price.toLocaleString('hu-HU')} Ft</b>-ot a fenti Revolut célra, közleménybe a felhasználónevet.</div>
+
+            <div style="margin-top:12px;font-weight:900">2) Visszaigazolás</div>
+            <div class="small" style="margin-top:6px">${contactEmail ? `Email: <a href="${mailto}"><u>${esc(contactEmail)}</u></a>` : `Ha szeretnél emailes visszaigazolást, add meg a címet a <span class="kbd">config.js</span>-ben.`}</div>
+
+            <div style="margin-top:12px;font-weight:900">3) Premium jelzés</div>
+            <div class="small" style="margin-top:6px">Demó kapcsoló (csak ezen az eszközön):</div>
+            <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn primary" id="enablePremium">Premium bekapcsolása</button>
+              <button class="btn" id="disablePremium">Premium kikapcsolása</button>
+            </div>
+          </div>
+
+          <div class="small" style="margin-top:12px">Megjegyzés: backend nélkül a Premium állapot nem szinkronizálható több eszköz között.</div>
+        </div>
+      </div>
+    `);
+
+    document.getElementById('copyTarget').onclick = () => copyText(payTarget);
+    document.getElementById('copyNote').onclick = () => copyText(userName);
+    document.getElementById('copyAll').onclick = () => copyText(`Revolut cél: ${payTarget}
+Összeg: ${price} Ft
+Közlemény: ${userName}`);
+
+    document.getElementById('enablePremium').onclick = () => { setPremium(true); setNavActive(); toast('Premium bekapcsolva'); };
+    document.getElementById('disablePremium').onclick = () => { setPremium(false); setNavActive(); toast('Premium kikapcsolva'); };
+  }
   function render() {
     setNavActive();
     hideOverlay();
+    setHomeNav(false);
 
     const { path } = route();
 
@@ -1130,6 +1281,7 @@
     if (path === "/genres") return pageGenres();
     if (path === "/my-list") return pageMyList();
     if (path === "/account") return pageAccount();
+    if (path === "/subscribe") return pageSubscribe();
 
     const mAni = path.match(/^\/ani\/(\d+)$/);
     if (mAni) return pageAniDetails(mAni[1]);
